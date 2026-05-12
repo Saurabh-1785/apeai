@@ -1,4 +1,4 @@
-# ApeAI — Layer 1: Ingestion Dependencies
+# ApeAI — Layer 1 + Layer 2 Dependencies
 
 # Web Framework
 fastapi>=0.115.0
@@ -6,6 +6,9 @@ uvicorn[standard]>=0.34.0
 
 # Database
 supabase>=2.30.0
+
+# AI / Embeddings (Layer 2)
+openai>=1.30.0
 
 # Configuration
 python-dotenv>=1.1.0
@@ -18,3 +21,4 @@ slack-bolt>=1.22.0
 # File Upload Support
 python-multipart>=0.0.20
 aiofiles>=24.1.0
+

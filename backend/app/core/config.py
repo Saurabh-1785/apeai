@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # ── GitHub (Optional) ────────────────────────────────
     github_webhook_secret: Optional[str] = None
 
+    # ── OpenAI (Required for Layer 2+ embeddings) ────────
+    openai_api_key: Optional[str] = None
+
     # ── Server ───────────────────────────────────────────
     app_host: str = "0.0.0.0"
     app_port: int = 8000
@@ -49,6 +52,11 @@ class Settings(BaseSettings):
     def github_configured(self) -> bool:
         """Check if GitHub webhook secret is provided."""
         return bool(self.github_webhook_secret)
+
+    @property
+    def openai_configured(self) -> bool:
+        """Check if OpenAI API key is provided."""
+        return bool(self.openai_api_key)
 
 
 # Singleton instance
