@@ -1,83 +1,82 @@
 """
-ApeAI — Embedding Service
+ApeAI — Embedding Service (Google Gemini Edition)
 
-Generates vector embeddings using OpenAI's text-embedding-3-small model
+Generates vector embeddings using Google's text-embedding-004 model
 and stores them in Supabase pgvector for similarity search.
 
 This is the bridge between raw text feedback and AI-powered clustering.
 """
 
 import logging
+import asyncio
 from typing import Dict, Any, List, Optional
 
+import google.generativeai as genai
 from backend.app.core.config import settings
 from backend.app.db.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
-# Lazy-loaded OpenAI client
-_openai_client = None
+# Singleton configuration flag
+_configured = False
 
 
-def _get_openai_client():
-    """Get or create the OpenAI client (lazy initialization)."""
-    global _openai_client
-    if _openai_client is not None:
-        return _openai_client
+def _configure_google_ai():
+    """Configure the Google AI SDK."""
+    global _configured
+    if _configured:
+        return
 
-    if not settings.openai_api_key:
+    if not settings.google_api_key:
         raise RuntimeError(
-            "OpenAI API key not configured. "
-            "Set OPENAI_API_KEY in your .env file."
+            "Google API key not configured. "
+            "Set GOOGLE_API_KEY in your .env file."
         )
 
-    from openai import OpenAI
-    _openai_client = OpenAI(api_key=settings.openai_api_key)
-    logger.info("✅ OpenAI client initialized")
-    return _openai_client
+    genai.configure(api_key=settings.google_api_key)
+    _configured = True
+    logger.info("✅ Google AI SDK configured")
 
 
 async def generate_embedding(text: str) -> List[float]:
     """
-    Generate a vector embedding for the given text.
+    Generate a vector embedding for the given text using Google Gemini.
     
-    Uses OpenAI text-embedding-3-small (1536 dimensions).
+    Uses models/text-embedding-004 (768 dimensions).
     
     Args:
         text: The text to embed.
         
     Returns:
-        List of 1536 floats representing the embedding vector.
+        List of 768 floats representing the embedding vector.
     """
-    client = _get_openai_client()
+    _configure_google_ai()
 
     try:
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text,
-        )
-        embedding = response.data[0].embedding
-        logger.debug(f"Generated embedding: {len(embedding)} dimensions")
+        # Run the synchronous Google SDK call in a thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        
+        def _call_gemini():
+            return genai.embed_content(
+                model="models/text-embedding-004",
+                content=text,
+                task_type="clustering",
+            )
+
+        response = await loop.run_in_executor(None, _call_gemini)
+        
+        embedding = response['embedding']
+        logger.debug(f"Generated Gemini embedding: {len(embedding)} dimensions")
         return embedding
 
     except Exception as e:
-        logger.error(f"❌ Failed to generate embedding: {e}")
-        raise RuntimeError(f"Embedding generation failed: {e}")
+        logger.error(f"❌ Failed to generate Gemini embedding: {e}")
+        raise RuntimeError(f"Gemini embedding generation failed: {e}")
 
 
 async def create_embedding_for_feedback(feedback_id: str) -> Dict[str, Any]:
     """
-    Generate and store an embedding for a specific feedback item.
-    
-    1. Fetches the feedback content from Supabase
-    2. Generates the embedding via OpenAI
-    3. Stores the vector in the embeddings table
-    
-    Args:
-        feedback_id: UUID of the feedback item.
-        
-    Returns:
-        The created embedding row.
+    Generate and store a Gemini embedding for a specific feedback item.
     """
     db = get_supabase_client()
 
@@ -104,21 +103,20 @@ async def create_embedding_for_feedback(feedback_id: str) -> Dict[str, Any]:
     content = feedback.data["content"]
 
     # Generate embedding
-    logger.info(f"🧠 Generating embedding for feedback {feedback_id} ({len(content)} chars)")
+    logger.info(f"🧠 Generating Gemini embedding for feedback {feedback_id} ({len(content)} chars)")
     embedding = await generate_embedding(content)
 
     # Store in database
-    # pgvector expects the vector as a string representation: '[0.1, 0.2, ...]'
     vector_str = f"[{','.join(str(v) for v in embedding)}]"
 
     result = db.table("embeddings").insert({
         "feedback_id": feedback_id,
         "embedding": vector_str,
-        "model": "text-embedding-3-small",
+        "model": "text-embedding-004",
     }).execute()
 
     if result.data:
-        logger.info(f"✅ Embedding stored for feedback {feedback_id}")
+        logger.info(f"✅ Gemini embedding stored for feedback {feedback_id}")
         return result.data[0]
     else:
         raise RuntimeError(f"Failed to store embedding for {feedback_id}")
@@ -128,22 +126,11 @@ async def create_embeddings_batch(
     feedback_ids: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
-    Generate embeddings for multiple feedback items.
-    
-    If feedback_ids is None, embeds all feedback that doesn't have
-    an embedding yet (backfill mode).
-    
-    Args:
-        feedback_ids: Optional list of specific feedback UUIDs.
-        
-    Returns:
-        Summary with counts of created, skipped, and errors.
+    Generate Gemini embeddings for multiple feedback items.
     """
     db = get_supabase_client()
 
     if feedback_ids is None:
-        # Find all feedback without embeddings
-        # Use a left join approach: get all feedback IDs, then filter
         all_feedback = db.table("feedback").select("id").execute()
         existing_embeddings = db.table("embeddings").select("feedback_id").execute()
 
@@ -160,7 +147,7 @@ async def create_embeddings_batch(
     skipped = 0
     errors = []
 
-    logger.info(f"🧠 Batch embedding: {len(feedback_ids)} items to process")
+    logger.info(f"🧠 Batch embedding (Gemini): {len(feedback_ids)} items to process")
 
     for fid in feedback_ids:
         try:
@@ -169,17 +156,9 @@ async def create_embeddings_batch(
                 created += 1
             else:
                 skipped += 1
-        except ValueError as e:
-            logger.warning(f"Skipped {fid}: {e}")
-            skipped += 1
         except Exception as e:
             logger.error(f"Error embedding {fid}: {e}")
             errors.append({"feedback_id": fid, "error": str(e)})
-
-    logger.info(
-        f"✅ Batch embedding complete: {created} created, "
-        f"{skipped} skipped, {len(errors)} errors"
-    )
 
     return {
         "total": len(feedback_ids),
@@ -193,25 +172,13 @@ async def search_similar(
     text: Optional[str] = None,
     feedback_id: Optional[str] = None,
     match_count: int = 10,
-    match_threshold: float = 0.7,
+    match_threshold: float = 0.5, # Gemini similarity values can differ from OpenAI
 ) -> List[Dict[str, Any]]:
     """
-    Find feedback items similar to the given text or feedback item.
-    
-    Uses pgvector cosine distance for similarity comparison.
-    
-    Args:
-        text: Text to search for (generates embedding on the fly).
-        feedback_id: Find items similar to this feedback.
-        match_count: Number of results to return.
-        match_threshold: Minimum similarity score (0-1).
-        
-    Returns:
-        List of similar feedback items with similarity scores.
+    Find feedback items similar to the given text or feedback item using Gemini vectors.
     """
     db = get_supabase_client()
 
-    # Get the query embedding
     if text:
         query_embedding = await generate_embedding(text)
     elif feedback_id:
@@ -228,7 +195,6 @@ async def search_similar(
     else:
         raise ValueError("Either 'text' or 'feedback_id' must be provided")
 
-    # Use the match_feedback RPC function for similarity search
     vector_str = f"[{','.join(str(v) for v in query_embedding)}]" if isinstance(query_embedding, list) else query_embedding
 
     result = db.rpc("match_feedback", {
@@ -255,6 +221,8 @@ async def get_embedding_stats() -> Dict[str, Any]:
             "total_feedback": feedback_count,
             "total_embedded": embedding_count,
             "total_unembedded": feedback_count - embedding_count,
+            "model": "text-embedding-004",
+            "dimensions": 768
         }
     except Exception as e:
         logger.error(f"Failed to get embedding stats: {e}")

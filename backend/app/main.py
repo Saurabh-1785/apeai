@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
 
     # Report configuration status
     logger.info(f"  Supabase:  {'✅ configured' if settings.supabase_configured else '❌ not configured'}")
-    logger.info(f"  OpenAI:    {'✅ configured' if settings.openai_configured else '⏭️  not configured (needed for embeddings)'}")
+    logger.info(f"  Google AI: {'✅ configured' if settings.google_configured else '⏭️  not configured (needed for embeddings)'}")
     logger.info(f"  Slack:     {'✅ configured' if settings.slack_configured else '⏭️  not configured (optional)'}")
     logger.info(f"  GitHub:    {'✅ configured' if settings.github_configured else '⏭️  not configured (optional)'}")
     logger.info(f"  Email:     ✅ endpoint ready (no config needed)")

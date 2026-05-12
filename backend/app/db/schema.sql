@@ -32,15 +32,15 @@ CREATE INDEX IF NOT EXISTS idx_feedback_timestamp ON feedback(timestamp);
 
 -- ─── Table 2: embeddings ────────────────────────────────────
 -- Vector embeddings for each feedback item.
--- Uses OpenAI text-embedding-3-small (1536 dimensions).
+-- Uses Google text-embedding-004 (768 dimensions).
 -- Separate from feedback table for performance: vector queries
 -- are heavy and this keeps them isolated.
 
 CREATE TABLE IF NOT EXISTS embeddings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     feedback_id UUID NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
-    embedding VECTOR(1536) NOT NULL,
-    model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
+    embedding VECTOR(768) NOT NULL,
+    model TEXT NOT NULL DEFAULT 'text-embedding-004',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(feedback_id)
 );
@@ -217,7 +217,7 @@ CREATE OR REPLACE TRIGGER update_integrations_updated_at
 -- to a given embedding vector using cosine distance.
 
 CREATE OR REPLACE FUNCTION match_feedback(
-    query_embedding VECTOR(1536),
+    query_embedding VECTOR(768),
     match_count INT DEFAULT 10,
     match_threshold FLOAT DEFAULT 0.8
 )
