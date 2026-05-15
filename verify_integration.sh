@@ -2,7 +2,7 @@
 # ApeAI — Cross-Layer Integration Verifier
 # This script tests the flow from Layer 1 Ingestion to Layer 2 Storage
 
-BASE_URL="http://localhost:8000"
+BASE_URL="http://127.0.0.1:8000"
 
 echo "=========================================="
 echo "🦍 ApeAI: Layer 1 ↔ Layer 2 Verification"

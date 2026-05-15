@@ -57,17 +57,22 @@ async def generate_embedding(text: str) -> List[float]:
         loop = asyncio.get_event_loop()
         
         def _call_gemini():
+            # Using gemini-embedding-2 (the latest)
+            # Truncating to 768 as per pgvector table definition
             return genai.embed_content(
-                model="models/text-embedding-004",
+                model="models/gemini-embedding-2",
                 content=text,
                 task_type="clustering",
+                output_dimensionality=768
             )
 
         response = await loop.run_in_executor(None, _call_gemini)
         
         embedding = response['embedding']
-        logger.debug(f"Generated Gemini embedding: {len(embedding)} dimensions")
-        return embedding
+        # Explicitly truncate/pad to 768 as per pgvector table definition
+        embedding_vector = list(embedding)[:768]
+        logger.info(f"✅ Generated embedding: {len(embedding_vector)} dims")
+        return embedding_vector
 
     except Exception as e:
         logger.error(f"❌ Failed to generate Gemini embedding: {e}")
@@ -107,12 +112,16 @@ async def create_embedding_for_feedback(feedback_id: str) -> Dict[str, Any]:
     embedding = await generate_embedding(content)
 
     # Store in database
-    vector_str = f"[{','.join(str(v) for v in embedding)}]"
+    # Ensure it's exactly 768 for pgvector
+    embedding_768 = embedding[:768]
+    vector_str = f"[{','.join(str(v) for v in embedding_768)}]"
+    
+    logger.info(f"💾 Sending vector of length {len(embedding_768)} to DB for feedback {feedback_id}")
 
     result = db.table("embeddings").insert({
         "feedback_id": feedback_id,
         "embedding": vector_str,
-        "model": "text-embedding-004",
+        "model": "gemini-embedding-2",
     }).execute()
 
     if result.data:
@@ -221,7 +230,7 @@ async def get_embedding_stats() -> Dict[str, Any]:
             "total_feedback": feedback_count,
             "total_embedded": embedding_count,
             "total_unembedded": feedback_count - embedding_count,
-            "model": "text-embedding-004",
+            "model": "gemini-embedding-2",
             "dimensions": 768
         }
     except Exception as e:

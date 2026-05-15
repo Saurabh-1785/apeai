@@ -35,8 +35,8 @@ from backend.app.routes.documents import (
     approval_router,
     integration_router,
     ticket_router,
-    pipeline_router,
 )
+from backend.app.routes.pipeline import router as pipeline_router
 
 from backend.app.services.save_feedback import get_feedback_stats
 

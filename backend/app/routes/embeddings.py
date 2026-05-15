@@ -45,7 +45,7 @@ async def create_embedding(data: EmbeddingCreate):
     """
     Generate a vector embedding for a single feedback item.
     
-    Uses OpenAI text-embedding-3-small (1536 dimensions).
+    Uses Google text-embedding-004 (768 dimensions).
     The embedding is stored in pgvector for similarity search.
     Skips if embedding already exists.
     """
@@ -54,8 +54,8 @@ async def create_embedding(data: EmbeddingCreate):
         return EmbeddingResponse(
             id=result.get("id", ""),
             feedback_id=result.get("feedback_id", data.feedback_id),
-            model=result.get("model", "text-embedding-3-small"),
-            dimensions=1536,
+            model=result.get("model", "text-embedding-004"),
+            dimensions=768,
             created_at=result.get("created_at", ""),
             message="Embedding created successfully",
         )
