@@ -38,6 +38,11 @@ from backend.app.routes.documents import (
 )
 from backend.app.routes.pipeline import router as pipeline_router
 
+# Layer 4 routes (Integrations/Publishing)
+from backend.app.integrations.github.routes import router as github_publish_router
+from backend.app.integrations.jira.routes import router as jira_publish_router
+from backend.app.integrations.linear.routes import router as linear_publish_router
+
 from backend.app.services.save_feedback import get_feedback_stats
 
 # ─── Logging Configuration ─────────────────────────────────
@@ -153,6 +158,11 @@ app.include_router(approval_router)
 app.include_router(integration_router)
 app.include_router(ticket_router)
 app.include_router(pipeline_router)
+
+# ─── Mount Layer 4 Routes (Integrations/Publishing) ────────
+app.include_router(github_publish_router)
+app.include_router(jira_publish_router)
+app.include_router(linear_publish_router)
 
 
 # ─── Core Endpoints ───────────────────────────────────────
