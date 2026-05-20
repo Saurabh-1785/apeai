@@ -16,7 +16,18 @@ import {
   Loader2, 
   AlertTriangle,
   Github,
-  Check
+  Check,
+  Eye,
+  Edit2,
+  Target,
+  TrendingUp,
+  Users,
+  Shield,
+  CheckSquare,
+  Activity,
+  FileText,
+  Layout,
+  Server
 } from 'lucide-react';
 
 type DocType = 'brd' | 'prd' | 'story' | 'task';
@@ -41,6 +52,7 @@ export default function DocumentReviewPage() {
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [publishingPlatform, setPublishingPlatform] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('preview');
 
   const loadData = useCallback(async () => {
     try {
@@ -155,6 +167,369 @@ export default function DocumentReviewPage() {
       loadData(); // Reload to pick up 'failed' status transition
     } finally {
       setPublishingPlatform(null);
+    }
+  };
+
+  const renderCleanView = () => {
+    let data: any = null;
+    try {
+      data = JSON.parse(editContentText);
+    } catch (err) {
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-amber-800 space-y-3">
+          <div className="flex items-center gap-2 font-bold text-sm">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            Invalid JSON Format
+          </div>
+          <p className="text-xs">
+            The editor currently contains invalid JSON. Please switch back to the <strong>Edit JSON</strong> tab to correct syntax errors before previewing.
+          </p>
+          <button
+            type="button"
+            onClick={() => setViewMode('edit')}
+            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
+          >
+            Open Editor
+          </button>
+        </div>
+      );
+    }
+
+    if (!data) return <p className="text-slate-400 italic text-sm text-center py-12">No content available.</p>;
+
+    switch (activeTab) {
+      case 'brd':
+        return (
+          <div className="space-y-6">
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">{data.title || 'Business Requirements Document'}</h3>
+            </div>
+
+            {data.problem_statement && (
+              <div className="bg-gradient-to-r from-violet-500/5 to-indigo-500/5 border border-indigo-100 rounded-xl p-5 shadow-xs">
+                <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                  <Target className="w-4 h-4" />
+                  Problem Statement
+                </h4>
+                <p className="text-xs text-slate-700 leading-relaxed font-semibold">{data.problem_statement}</p>
+              </div>
+            )}
+
+            {data.business_impact && (
+              <div className="bg-gradient-to-r from-emerald-500/5 to-teal-500/5 border border-emerald-100 rounded-xl p-5 shadow-xs">
+                <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Business Impact
+                </h4>
+                <p className="text-xs text-slate-700 leading-relaxed font-semibold">{data.business_impact}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <CheckSquare className="w-4 h-4 text-blue-500" />
+                  Business Goals
+                </h4>
+                <ul className="space-y-2">
+                  {Array.isArray(data.goals) && data.goals.map((goal: string, idx: number) => (
+                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-600">{idx + 1}</span>
+                      <span className="pt-0.5">{goal}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-purple-500" />
+                  Target Stakeholders
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {Array.isArray(data.target_stakeholders) && data.target_stakeholders.map((sh: string, idx: number) => (
+                    <span key={idx} className="text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-full shadow-xs">
+                      {sh}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-rose-500" />
+                  Success Metrics
+                </h4>
+                <ul className="space-y-2">
+                  {Array.isArray(data.success_metrics) && data.success_metrics.map((metric: string, idx: number) => (
+                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-rose-50 text-rose-600 text-[10px] font-bold">✓</span>
+                      <span>{metric}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'prd':
+        return (
+          <div className="space-y-6">
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">{data.title || 'Product Requirements Document'}</h3>
+            </div>
+
+            {Array.isArray(data.user_flows) && data.user_flows.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">User Experience Flows</h4>
+                <div className="relative border-l border-blue-100 ml-3 pl-6 space-y-4">
+                  {data.user_flows.map((flow: string, idx: number) => (
+                    <div key={idx} className="relative">
+                      <span className="absolute -left-[31px] top-0 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white text-[11px] font-bold shadow-md shadow-blue-500/20 border-2 border-white">
+                        {idx + 1}
+                      </span>
+                      <p className="text-xs font-semibold text-slate-700 pt-0.5">{flow}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {Array.isArray(data.milestones) && data.milestones.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Project Milestones</h4>
+                <div className="relative border-l border-slate-200 ml-3 pl-6 space-y-4">
+                  {data.milestones.map((ms: string, idx: number) => (
+                    <div key={idx} className="relative">
+                      <span className="absolute -left-[30px] top-0 flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold border-2 border-white">
+                        ★
+                      </span>
+                      <p className="text-xs font-semibold text-slate-600 pt-0.5">{ms}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layout className="w-4 h-4 text-blue-500" />
+                  Functional Req.
+                </h4>
+                <ul className="space-y-2">
+                  {Array.isArray(data.functional_requirements) && data.functional_requirements.map((req: string, idx: number) => (
+                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
+                      <span className="text-blue-500 font-bold shrink-0">•</span>
+                      <span>{req}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-emerald-500" />
+                  Non-Functional Req.
+                </h4>
+                <ul className="space-y-2">
+                  {Array.isArray(data.non_functional_requirements) && data.non_functional_requirements.map((req: string, idx: number) => (
+                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
+                      <span className="text-emerald-500 font-bold shrink-0">•</span>
+                      <span>{req}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Tech Constraints
+                </h4>
+                <ul className="space-y-2">
+                  {Array.isArray(data.technical_constraints) && data.technical_constraints.map((req: string, idx: number) => (
+                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2 bg-amber-50/50 p-2 rounded border border-amber-100/50">
+                      <span>{req}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'story':
+        const getPriorityColor = (prio: string) => {
+          const lower = String(prio).toLowerCase();
+          if (lower.includes('must')) return 'bg-rose-50 border-rose-200 text-rose-700';
+          if (lower.includes('should')) return 'bg-blue-50 border-blue-200 text-blue-700';
+          return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+        };
+
+        return (
+          <div className="max-w-2xl mx-auto py-2">
+            <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded">Agile User Story</span>
+                  <h3 className="text-base font-extrabold text-slate-800 mt-2">{data.title || 'Draft Story Details'}</h3>
+                </div>
+                {data.priority && (
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border shadow-xs ${getPriorityColor(data.priority)}`}>
+                    {data.priority}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3.5 bg-slate-50/80 p-5 rounded-xl border border-slate-100/50">
+                {data.user_role && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 w-20">As a</span>
+                    <span className="text-xs font-bold text-slate-800 leading-snug">{String(data.user_role).replace(/^As a /i, '')}</span>
+                  </div>
+                )}
+                {data.requirement && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 w-20">I want to</span>
+                    <span className="text-xs font-bold text-indigo-700 leading-snug">{String(data.requirement).replace(/^I want to /i, '')}</span>
+                  </div>
+                )}
+                {data.benefit && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 w-20">So that</span>
+                    <span className="text-xs font-bold text-emerald-700 leading-snug">{String(data.benefit).replace(/^so that /i, '')}</span>
+                  </div>
+                )}
+              </div>
+
+              {Array.isArray(data.acceptance_criteria) && data.acceptance_criteria.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckSquare className="w-4 h-4 text-blue-500" />
+                    Acceptance Criteria
+                  </h4>
+                  <div className="space-y-2">
+                    {data.acceptance_criteria.map((criteria: string, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50/80 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked
+                          readOnly
+                          className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 w-3.5 h-3.5 shrink-0"
+                        />
+                        <span className="text-xs font-semibold text-slate-600">{criteria}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'task':
+        const getComplexityColor = (comp: string) => {
+          const lower = String(comp).toLowerCase();
+          if (lower.includes('large')) return 'bg-rose-50 border-rose-200 text-rose-700';
+          if (lower.includes('medium')) return 'bg-amber-50 border-amber-200 text-amber-700';
+          return 'bg-blue-50 border-blue-200 text-blue-700';
+        };
+
+        return (
+          <div className="space-y-6">
+            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-purple-600 bg-purple-50 px-2.5 py-1 rounded">Technical Task Breakdown</span>
+                <h3 className="text-base font-extrabold text-slate-800 mt-2">{data.story_title || 'Story Development Tasks'}</h3>
+              </div>
+              {data.estimated_complexity && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400 font-bold">Complexity:</span>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border shadow-xs ${getComplexityColor(data.estimated_complexity)}`}>
+                    {data.estimated_complexity}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <Layout className="w-4 h-4 text-sky-500" />
+                  Frontend Tasks
+                  {Array.isArray(data.frontend_tasks) && (
+                    <span className="ml-auto bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{data.frontend_tasks.length}</span>
+                  )}
+                </h4>
+                <div className="space-y-2">
+                  {Array.isArray(data.frontend_tasks) && data.frontend_tasks.map((task: string, idx: number) => (
+                    <div key={idx} className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow">
+                      <p className="text-xs font-semibold text-slate-700 leading-snug">{task}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <Server className="w-4 h-4 text-purple-500" />
+                  Backend Tasks
+                  {Array.isArray(data.backend_tasks) && (
+                    <span className="ml-auto bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{data.backend_tasks.length}</span>
+                  )}
+                </h4>
+                <div className="space-y-2">
+                  {Array.isArray(data.backend_tasks) && data.backend_tasks.map((task: string, idx: number) => (
+                    <div key={idx} className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow">
+                      <p className="text-xs font-semibold text-slate-700 leading-snug">{task}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <Shield className="w-4 h-4 text-emerald-500" />
+                  Testing Tasks
+                  {Array.isArray(data.testing_tasks) && (
+                    <span className="ml-auto bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{data.testing_tasks.length}</span>
+                  )}
+                </h4>
+                <div className="space-y-2">
+                  {Array.isArray(data.testing_tasks) && data.testing_tasks.map((task: string, idx: number) => (
+                    <div key={idx} className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow">
+                      <p className="text-xs font-semibold text-slate-700 leading-snug">{task}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {Array.isArray(data.dependencies) && data.dependencies.length > 0 && (
+              <div className="border-t border-slate-100 pt-4 space-y-2">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  📌 Tech Dependencies
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {data.dependencies.map((dep: string, idx: number) => (
+                    <span key={idx} className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-lg">
+                      {dep}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return (
+          <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto leading-relaxed">
+            {editContentText}
+          </pre>
+        );
     }
   };
 
@@ -336,14 +711,51 @@ export default function DocumentReviewPage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Document Content (JSON Format)</label>
-                  <textarea
-                    value={editContentText}
-                    onChange={(e) => setEditContentText(e.target.value)}
-                    rows={16}
-                    className="w-full text-xs font-mono border border-slate-200 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 focus:bg-white leading-relaxed"
-                  />
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      {viewMode === 'edit' ? 'Document Content (JSON Format)' : 'Document Clean View'}
+                    </label>
+                    <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100/80 shadow-inner">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('preview')}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 flex items-center gap-1.5 ${
+                          viewMode === 'preview'
+                            ? 'bg-white text-blue-600 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Clean View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('edit')}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 flex items-center gap-1.5 ${
+                          viewMode === 'edit'
+                            ? 'bg-white text-blue-600 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Edit JSON
+                      </button>
+                    </div>
+                  </div>
+
+                  {viewMode === 'edit' ? (
+                    <textarea
+                      value={editContentText}
+                      onChange={(e) => setEditContentText(e.target.value)}
+                      rows={16}
+                      className="w-full text-xs font-mono border border-slate-200 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 focus:bg-white leading-relaxed"
+                    />
+                  ) : (
+                    <div className="border border-slate-100 rounded-xl bg-slate-50/20 p-6 min-h-[400px]">
+                      {renderCleanView()}
+                    </div>
+                  )}
                 </div>
               </div>
 
