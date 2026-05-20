@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 # Model Mapping (Exact names from your ListModels output)
 MODEL_MAPPING = {
-    "flash": "gemini-1.5-flash", 
-    "pro": "gemini-1.5-pro",     
+    "flash": "gemini-2.5-flash-lite", 
+    "pro": "gemini-2.5-flash-lite",     
     "embedding": "models/gemini-embedding-2" 
 }
 

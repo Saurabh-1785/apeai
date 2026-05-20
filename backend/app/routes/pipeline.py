@@ -91,10 +91,3 @@ async def api_generate_tasks(cluster_id: str, story_id: str):
     except Exception as e:
         logger.error(f"Task generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/status", summary="Full pipeline status")
-async def api_pipeline_status():
-    """Returns an overview of where all feedback is in the pipeline."""
-    # This calls the existing document service helper
-    from backend.app.services.document_service import get_pipeline_status
-    return await get_pipeline_status()

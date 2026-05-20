@@ -33,10 +33,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // --- INGESTION (Layer 1) ---
-  async ingestManualFeedback(content: string, source: string = 'manual'): Promise<any> {
-    return request<any>('/feedback/', {
+  async ingestManualFeedback(content: string, author: string = 'anonymous'): Promise<any> {
+    return request<any>('/feedback/manual', {
       method: 'POST',
-      body: JSON.stringify({ content, source }),
+      body: JSON.stringify({ content, author }),
     });
   },
 
@@ -102,8 +102,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({
         document_id: documentId,
-        approved_by: approvedBy,
-        notes: 'Approved via human review portal'
+        approved: true,
+        reviewed_by: approvedBy,
+        review_notes: 'Approved via human review portal'
       }),
     });
   },

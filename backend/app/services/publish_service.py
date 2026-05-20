@@ -127,21 +127,11 @@ async def publish_document(document_id: str, integration_id: str) -> Dict[str, A
         
     # 4. Human-in-the-Loop check: Must be approved
     current_status = doc.get("status")
-    if current_status not in ("approved", "publishing", "failed"):
+    if current_status != "approved":
         raise ValueError(f"Only approved documents can be published. Current status: {current_status}")
         
-    # 5. Transition to 'publishing' (with backward compatibility fallback)
-    db_supports_publishing = True
-    try:
-        db.table("documents").update({"status": "publishing"}).eq("id", document_id).execute()
-        logger.info(f"🔄 Publishing document {document_id} to integration {integration_id}...")
-    except Exception as e:
-        err_msg = str(e)
-        if "violates check constraint" in err_msg or "23514" in err_msg:
-            db_supports_publishing = False
-            logger.warning("⚠️  Database check constraint does not support 'publishing' status. Falling back to 'approved' state.")
-        else:
-            raise e
+    # 5. Log the publish attempt (stay in 'approved' status during the attempt)
+    logger.info(f"🔄 Publishing document {document_id} to integration {integration_id}...")
     
     try:
         # 6. Map to universal format
@@ -186,15 +176,9 @@ async def publish_document(document_id: str, integration_id: str) -> Dict[str, A
         
     except Exception as e:
         logger.error(f"❌ Failed to publish document {document_id}: {e}", exc_info=True)
-        # Transition to 'failed' if supported, otherwise revert back to 'approved' so the user can retry
-        if db_supports_publishing:
-            try:
-                db.table("documents").update({"status": "failed"}).eq("id", document_id).execute()
-            except Exception as fe:
-                logger.error(f"Failed to set document status to 'failed': {fe}")
-        else:
-            try:
-                db.table("documents").update({"status": "approved"}).eq("id", document_id).execute()
-            except Exception as ae:
-                logger.error(f"Failed to reset document status to 'approved': {ae}")
+        # Revert to 'approved' so the user can retry
+        try:
+            db.table("documents").update({"status": "approved"}).eq("id", document_id).execute()
+        except Exception as re:
+            logger.error(f"Failed to reset document status to 'approved': {re}")
         raise e
