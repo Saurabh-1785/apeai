@@ -1,121 +1,247 @@
-![alt text](product_ops_architecture.svg)
-## Layer 1 — Ingestion (collecting feedback)
+# 🦍 ApeAI — Automated Product Engineering AI
 
-**Technology: FastAPI (Python) endpoints**
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75C2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://aistudio.google.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-Each feedback source is its own independent module. Your backend exposes simple API endpoints that accept data and save it to the database. You don't need to build all sources at once — start with manual upload, add others over time.
+ApeAI is a **decoupled, layer-based Product Operations platform** that transforms raw, multi-source user feedback into structured, high-fidelity engineering tickets (BRD, PRD, Epics, Stories, and Technical Tasks). 
 
-**Sources and how to integrate them:**
-
-- **Manual upload / paste** — a simple text area or CSV uploader on your frontend that calls your FastAPI endpoint. Easiest starting point.
-- **Slack** — use the [Slack Bolt SDK for Python](https://slack.dev/bolt-python). It listens to events (messages in specific channels) and forwards them to your backend.
-- **Email** — use Mailgun or Postmark's inbound email feature. They give you a webhook URL — any email sent there gets forwarded as a JSON payload to your backend.
-- **GitHub Issues** — use GitHub Webhooks. When an issue is created/commented, GitHub sends a POST request to your backend.
-
-Every source converts its data to the **same internal JSON format** before saving it. This is the key to keeping sources modular and swappable.
+By leveraging **Google Gemini AI** for embeddings/generations, **Supabase (PostgreSQL + pgvector)** for similarity clustering, and a critical **Human-in-the-Loop review gate**, ApeAI streamlines the pipeline between customer requests and developer backlogs with transparency and control.
 
 ---
 
-## Layer 2 — Storage
+## Architecture Overview
 
-**Technology: Supabase (free tier)**
+ApeAI is built with a strictly modular architecture where **every layer is decoupled and communicates exclusively via JSON over HTTP**. This prevents direct code imports, ensuring that any single layer can be swapped out (e.g., swapping Google Gemini for OpenAI, or Supabase for local Postgres) without modifying the other layers.
 
-Supabase gives you PostgreSQL + a built-in vector extension called `pgvector` + authentication + a REST API — all for free. It's the best single tool for this project because it replaces four separate things.
+### Architecture
 
-**What you store:**
-
-- Raw feedback items (text, source, timestamp, metadata)
-- Embeddings of each feedback item (vectors, stored in pgvector) — used for clustering
-- Generated documents: BRD, PRD, epics, stories, tasks
-- Ticket status and integration links
-
-Since everything goes through Supabase, you can later swap any other layer without touching storage.
+![ApeAI Architecture](product_ops_architecture.svg)
 
 ---
 
-## Layer 3 — AI Pipeline
+## Layer-by-Layer Working
 
-**Technology: OpenAI API (GPT-4o) + FastAPI**
+### Layer 1 — Ingestion (Collecting Feedback)
+Layer 1 acts as the gateway for raw feedback from multiple customer-facing platforms. Each feedback channel is represented by an independent, pluggable module in the FastAPI backend:
+* **Manual Input / Paste**: Simple text areas and CSV upload options in the frontend dashboard that POST payloads directly to backend endpoints.
+* **Slack Integration**: Utilizes the **Slack Bolt SDK for Python** in **Socket Mode**. It listens for messages in specified product-feedback channels and dynamically forwards them to the ingestion service.
+* **Email Ingestion**: Exposes a clean webhook compatible with inbound JSON mail dispatchers (like Mailgun or Postmark).
+* **GitHub Issues Ingestion**: Registers GitHub Webhooks to capture newly opened issues and comments directly.
 
-This is the core of your product. Each pipeline step is its **own FastAPI route** (`/cluster`, `/generate-brd`, `/generate-stories`, etc.) that takes a JSON input and returns a JSON output. This keeps steps independent and easy to test or replace.
-
-**Step by step:**
-
-- **Clustering (Steps 1-2)** — Use OpenAI's `text-embedding-3-small` model to convert each feedback item into a vector. Then use simple cosine similarity queries against pgvector to find similar items. Group them into clusters. You don't need any ML library for this — pgvector handles the math via SQL.
-- **BRD + PRD generation (Steps 3-5)** — Pass a cluster summary to GPT-4o with a well-crafted system prompt telling it to output a structured BRD in JSON format. Do the same for PRD separately. Using JSON output mode from OpenAI means you get clean, structured data every time — no parsing headaches.
-- **Epic + Story generation (Steps 6-7)** — Feed the PRD into another GPT-4o call. Prompt it to return an array of epics, each with an array of user stories in Agile format.
-- **Task breakdown + sprint plan (Steps 8-9)** — Feed each story into another call. Prompt it to return frontend tasks, backend tasks, testing tasks, estimated complexity, and dependencies.
-
-**The human review gate** — before anything touches Jira or GitHub, your frontend shows the AI output for a human to review, edit, or reject. This is not just a nice feature; it's what makes the product trustworthy. Implement this as a simple approval table in your dashboard.
+> [!NOTE]
+> **Modular Normalization**: Regardless of whether a feedback item comes from a Slack chat, an email, or a GitHub issue, Layer 1 normalizes the payload into a **single, unified JSON format** containing `content`, `source`, `author`, and optional `metadata` before saving.
 
 ---
 
-## Layer 4 — Integrations (pushing tickets)
-
-**Technology: Official REST/GraphQL APIs (Python `requests` library)**
-
-Each integration is its own Python module in your backend. They all receive the same approved task JSON and translate it to the target platform's format.
-
-- **Jira** — [Jira REST API v3](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/). Create issues with `POST /rest/api/3/issue`. You can set summary, description, priority, labels, and assignee. Use an API token (simple, no OAuth needed for personal/team use).
-- **GitHub Issues** — [GitHub REST API](https://docs.github.com/en/rest/issues). `POST /repos/{owner}/{repo}/issues`. Super simple — title, body, labels, assignees.
-- **Linear** — [Linear GraphQL API](https://developers.linear.app/docs). Slightly more complex because it uses GraphQL, but the docs are excellent.
-
-Each integration is a separate file. Swapping one out (say, replacing Jira with Notion) means editing one file, not the whole project.
+### Layer 2 — Storage & Vector Database
+All persistent data is stored in **Supabase**, consolidating PostgreSQL database services, vector indexing, authentication, and REST APIs:
+* **Raw Feedback**: Stored in a standardized `feedback` table.
+* **Vector Embeddings**: Generated by Google Gemini's `models/gemini-embedding-2` (768-dimensions) and stored in a specialized `embeddings` table mapped to feedback rows via a Foreign Key relationship.
+* **Clustering Support**: Utilizes the Supabase **`pgvector` extension** to perform high-speed cosine similarity queries. Similarity groups are mapped using a `cluster_feedback` relational table.
+* **Documents & Approvals**: AI-generated deliverables (BRDs, PRDs, stories, tasks) are stored in a flexible **JSONB column** in the `documents` table to accommodate shifting prompts and document structures. The `approvals` table logs the history of human edits and review decisions.
 
 ---
 
-## Layer 5 — Frontend
+### Layer 3 — AI & Processing Pipeline
+This represents the brain of ApeAI. Each step is structured as its own independent FastAPI route (`/pipeline/cluster`, `/pipeline/generate-brd`, etc.), transforming structured JSON inputs into high-quality outputs using Google Gemini (`gemini-2.5-flash-lite` in structured JSON mode):
 
-**Technology: Next.js + Tailwind CSS**
+```mermaid
+graph TD
+    Raw[Ingested Feedback] -->|Embeddings| Emb[Gemini Vector Embeddings]
+    Emb -->|Cosine Similarity| Clust[Similarity Clustering]
+    Clust -->|Cluster Summary| BRD[1. Business Requirement Document - BRD]
+    BRD -->|Gemini Generation| PRD[2. Product Requirement Document - PRD]
+    PRD -->|Agile Decomposer| Stories[3. Agile User Stories]
+    Stories -->|Task Decomposer| Tasks[4. Frontend, Backend, QA Tasks]
+    Tasks -->|Review Gate| Review{Human Review & Inline Edit}
+    Review -->|Approved| Publish[Layer 4: Push to Jira/GitHub/Linear]
+    Review -->|Rejected/Draft| Edit[Back to Draft/Edit]
+```
 
-Next.js gives you React with file-based routing, and it's easy to deploy on Vercel for free. Tailwind handles styling without writing custom CSS.
-
-**Key pages to build:**
-
-- **Feedback inbox** — shows all ingested feedback, grouped by cluster. Users can view, merge, or dismiss clusters.
-- **Pipeline view** — a step-by-step visual showing what stage each cluster is at (clustered → BRD generated → review → tickets created).
-- **Review page** — shows AI-generated BRD, PRD, stories, and tasks side by side. Let the user edit inline before approving.
-- **Integrations settings** — a simple form to enter Jira/GitHub/Linear API keys and map epics to projects.
-
----
-
-## How to keep everything modular
-
-The single most important rule: **every layer communicates via JSON over HTTP.** Your frontend calls your FastAPI backend. Your FastAPI backend calls the OpenAI API, Supabase, and integration APIs. No layer imports code from another layer directly. This means you can:
-
-- Replace OpenAI with Anthropic Claude by changing one file
-- Replace Supabase with a regular PostgreSQL instance by changing the DB module
-- Add a new ingestion source (like Discord) without touching anything else
-- Add a new integration (like Notion) by writing one new Python file
-
----
-
-## Extra ideas that would genuinely set this apart
-
-These are real, achievable additions — not fluff:
-
-**Confidence scores** — show a score (0–100) next to every AI-generated output. If the cluster has only 2 feedback items, show a low confidence score. This builds user trust and tells PMs when to double-check the AI's work.
-
-**Feedback loop / training log** — when a human edits an AI-generated story during review, log the original and the edited version. Over time, use these examples as few-shot examples in your prompts. The product gets better the more it's used.
-
-**Export before publish** — let users export the full BRD/PRD/stories as a Markdown or PDF file before any tickets are created. This is hugely useful for teams that need approvals before dev work starts.
-
-**Slack bot interface** — a simple Slack slash command (`/pipeline run`) that triggers the full pipeline and posts the results in a channel for team review. This removes the need to even open your dashboard for quick tasks.
-
-**Priority matrix view** — a 2×2 chart (frequency vs. impact) that plots each feedback cluster. High frequency + high impact = top of sprint. This makes prioritization visual and defensible.
+1. **Embedding & Similarity Clustering**: Converts raw feedback into 768-dimensional vectors. A custom PostgreSQL function, `match_feedback`, calculates cosine distance over `pgvector` to group similar feedback items together into "Clusters."
+2. **BRD + PRD Generation**: Aggregates clustered feedback into a core problem statement. Gemini generates structured, formal Business and Product Requirement Documents (BRDs & PRDs).
+3. **Agile User Stories**: Decomposes the PRD into concrete Agile User Stories containing:
+   * *User Role* ("As a...")
+   * *Requirement* ("I want to...")
+   * *Benefit* ("So that...")
+   * *Acceptance Criteria* (Detailed verification checklist)
+4. **Technical Task Breakdown**: Decomposes each user story into specific **Frontend**, **Backend**, and **Testing/QA tasks**, including estimated complexity (Story Points) and explicit execution dependencies.
+5. ** The Human-in-the-Loop Review Gate**: To ensure safety and production readiness, **no AI-generated content can touch external tracking tools without manual review**. The frontend displays the stories and tasks side-by-side, allowing Product Managers to edit, overwrite, approve, or reject items.
 
 ---
 
-## Recommended build order
+### Layer 4 — Integrations (Publishing Tickets)
+Once a document or story is **Approved** via the review gate, the integrations module handles exporting the details to the team's engineering trackers:
+* **GitHub Issues**: Automatically publishes issues using the GitHub REST API (`POST /repos/{owner}/{repo}/issues`).
+* **Jira Cloud**: Leverages the Jira REST API v3 (`POST /rest/api/3/issue`) to register epics and issues with summaries, styled descriptions, priorities, and components.
+* **Linear**: Integrates seamlessly with Linear's high-speed GraphQL API for modern task planning.
 
-Start small. Build one complete vertical slice before expanding horizontally.
+> [!IMPORTANT]
+> **Integrations Guardrails**: Layer 4 enforces strict security controls:
+> * **Approval Verification**: Checks `documents.status == 'approved'` before initiating calls.
+> * **Duplicate Protection**: Logs external IDs and URLs in `ticket_links` in Supabase, blocking duplicate publishing actions.
 
-1. Manual text upload → Supabase storage → GPT-4o generates user stories → display on a basic Next.js page. This alone is a working demo.
-2. Add clustering with embeddings.
-3. Add BRD and PRD generation.
-4. Add the human review gate.
-5. Add one integration (GitHub Issues is the easiest).
-6. Add more ingestion sources.
-7. Add the extra features above.
+---
 
-Each stage is independently useful and shippable. You never need to build everything at once.
+### Layer 5 — Frontend Dashboard
+A modern, visually stunning frontend interface built in **Next.js 14 (App Router, Tailwind CSS, TypeScript, and Lucide Icons)**:
+* **Feedback Inbox**: An inbox display showing raw feedback categorized into themes.
+* **Pipeline Progress Tracker**: Displays a visual kanban or status pipeline mapping clusters from `New` ➔ `Clustered` ➔ `BRD/PRD Generated` ➔ `Approved` ➔ `Tickets Created`.
+* **Side-by-Side Review Workspace**: Allows interactive editors to review and tweak AI deliverables before launching them into JIRA or GitHub.
+* **Integrations panel**: Allows fast configuration of active API keys and project IDs.
+
+---
+
+## Complete Local Setup Guide
+
+Follow these steps to clone, configure, and run ApeAI on any other local machine.
+
+### Prerequisites
+Ensure the following tools are installed:
+* **Python 3.10 or higher**
+* **Node.js 18 or higher** (with npm)
+* A **Supabase Account** (Free tier is perfectly fine!)
+* A **Google AI Studio API Key** (Get it for free [here](https://aistudio.google.com/))
+
+---
+
+### Step 1: Database Setup (Supabase)
+1. Log in to [Supabase](https://supabase.com/) and create a new project.
+2. Go to the **SQL Editor** on the left menu.
+3. Open a **New Query** tab.
+4. Copy the entire contents of `backend/app/db/schema.sql` and paste it into the editor.
+5. Click **Run**. This will:
+   * Enable the `vector` PostgreSQL extension.
+   * Create all 8 required tables (`feedback`, `embeddings`, `clusters`, `cluster_feedback`, `documents`, `approvals`, `integrations`, `ticket_links`).
+   * Set up PostgreSQL database triggers to auto-update `updated_at` columns.
+   * Register the custom `match_feedback` cosine-similarity function.
+6. Navigate to **Project Settings** ➔ **API** and copy your **Project URL** and **API Key (anon/public)**.
+
+---
+
+### Step 2: Backend Setup
+Open a terminal in the project root:
+
+1. **Activate Python Virtual Environment**:
+   ```bash
+   # Create virtual environment
+   python3 -m venv .venv
+   
+   # Activate it
+   source .venv/bin/activate
+   ```
+
+2. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Open `.env` and fill in the values:
+   ```env
+   # Database connection parameters (from Supabase Project Settings -> API)
+   SUPABASE_URL=https://your-project-id.supabase.co
+   SUPABASE_KEY=your-supabase-anon-or-service-role-key
+
+   # Gemini API Credentials (from Google AI Studio)
+   GOOGLE_API_KEY=your-google-api-key
+
+   # Optional Slack credentials (leave blank to skip)
+   SLACK_BOT_TOKEN=xoxb-your-bot-token
+   SLACK_APP_TOKEN=xapp-your-app-level-token
+
+   # Optional GitHub webhook secret (leave blank to skip)
+   GITHUB_WEBHOOK_SECRET=your-webhook-secret
+   ```
+
+4. **Verify Database Connection**:
+   Ensure the database is reachable and configured:
+   ```bash
+   python3 scripts/verify_db.py
+   ```
+   *Expected Output:*
+   ```text
+   🔍 Checking Supabase connection...
+   ✅ Connection successful!
+   ✅ 'feedback' table found. Current row count: 0
+   ```
+
+5. **Start the FastAPI Backend**:
+   ```bash
+   uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+   The backend interactive documentation will be available at [http://localhost:8000/docs](http://localhost:8000/docs).
+
+---
+
+### Step 3: Frontend Setup
+Open a separate terminal window and navigate to the `frontend` directory:
+
+1. **Install Frontend Dependencies**:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **Configure Local Environment**:
+   Verify `.env.local` contains the correct API address:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:8000
+   ```
+
+3. **Start the Next.js Dev Server**:
+   ```bash
+   npm run dev
+   ```
+   The interactive dashboard will be active at [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Verification & Test Scripts
+
+ApeAI includes a complete suite of validation scripts to test the integrity of all five layers without requiring full user interaction.
+
+### 1. Ingestion Endpoint Sanity Check
+Runs basic HTTP POST/GET requests to verify Layer 1 ingestion pipelines (Manual, Email webhook parser, and mock GitHub issue hooks):
+```bash
+# Ensure FastAPI is running on port 8000
+./test_endpoints.sh
+```
+
+### 2. Storage & Metadata Route Verification
+Validates that Layer 2 routes, clustering endpoints, approvals lists, and integrations configurations respond correctly:
+```bash
+./test_layer2.sh
+```
+
+### 3. End-to-End Ingestion-to-Storage Integration
+Verifies that when feedback is ingested, it is successfully written, a task embedding is computed, and the pipeline status updates:
+```bash
+./verify_integration.sh
+```
+
+### 4. Full AI Pipeline Execution
+Tests Layer 3 by running the complete pipeline from clustering up to full task and estimation generation:
+```bash
+./verify_layer3.sh
+```
+
+### 5. Integrations & Publishing Verification
+Performs a dry-run test of Layer 4 publishing logic. Creates mock Jira, GitHub, and Linear profiles, triggers the "Human-in-the-Loop" gate, blocks draft documents, pushes approved documents, and blocks duplicate publications:
+```bash
+./verify_publish.sh
+```
+
+---
+
+## Highlights & Advanced Features
+* **Confidence Scoring**: Dynamic reliability scoring (0-100) next to generated PRDs and Agile stories based on the volume and depth of clustered customer feedback.
+* **Prompt Feedback Loop**: Captures and logs exact manual revisions made by PMs in the review gate, enabling few-shot learning updates to prompt engines over time.
+* **Pre-Publish Exporting**: Lets users download complete BRD, PRD, and Agile story specs as clean, styled Markdown files directly from the dashboard before publishing tickets.

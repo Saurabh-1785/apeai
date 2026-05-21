@@ -1,254 +1,561 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '@/services/api';
-import { Cluster } from '@/types/models';
-import { useToast } from '@/components/ui/ToastProvider';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { 
+  Cpu, 
+  Database, 
   Inbox, 
-  Plus, 
-  Play, 
-  BarChart2, 
-  Layers, 
-  FileText, 
+  Settings, 
+  ShieldCheck,
+  Zap,
+  CheckCircle2,
+  Terminal,
+  Activity,
+  GitBranch,
+  Play,
+  Pause,
+  RotateCcw,
+  Code,
+  Check,
+  CheckSquare,
+  Square,
   ArrowRight,
-  Loader2,
-  AlertTriangle
+  MousePointerClick,
+  FileText,
+  Github,
+  Slack,
+  MessageCircle,
+  Trello,
+  LayoutGrid
 } from 'lucide-react';
 
-export default function FeedbackInboxPage() {
-  const { toast } = useToast();
-  const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [stats, setStats] = useState<{ total: number; by_source: Record<string, number> }>({ total: 0, by_source: {} });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Action states
-  const [ingestText, setIngestText] = useState('');
-  const [ingesting, setIngesting] = useState(false);
-  const [clustering, setClustering] = useState(false);
+export default function EnterpriseLandingPage() {
+  // Sandbox Simulator State
+  const [stepIndex, setStepIndex] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [speed, setSpeed] = useState<'slow' | 'normal' | 'fast'>('normal');
+  const [approved, setApproved] = useState<boolean>(false);
+  const [typewriterText, setTypewriterText] = useState<string>('');
 
-  const fetchData = async () => {
-    try {
-      setError(null);
-      const [clusterRes, statsRes] = await Promise.all([
-        api.getClusters(),
-        api.getFeedbackStats()
-      ]);
-      setClusters(clusterRes.clusters || []);
-      setStats(statsRes || { total: 0, by_source: {} });
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch cluster and statistics records');
-    } finally {
-      setLoading(false);
-    }
+  const speedMs = {
+    slow: 9000,
+    normal: 6000,
+    fast: 4000
   };
 
+  const fullSlackFeedback = "Hey team! Can we please add an option to export our dashboard analytics feedback to CSV spreadsheets? Our managers need raw reports for weekly syncs. It should also support date range filters to make custom auditing easier.";
+
+  // Typewriter effect logic
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (stepIndex === 0) {
+      setTypewriterText('');
+      let currentIdx = 0;
+      const interval = setInterval(() => {
+        if (currentIdx < fullSlackFeedback.length) {
+          setTypewriterText((prev) => prev + fullSlackFeedback.charAt(currentIdx));
+          currentIdx++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 18);
+      return () => clearInterval(interval);
+    }
+  }, [stepIndex]);
 
-  const handleIngest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ingestText.trim()) return;
+  // Autoplay loop timer
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    const interval = setInterval(() => {
+      setStepIndex((prevIndex) => {
+        if (prevIndex === 3) {
+          setApproved(false);
+          return 0;
+        }
+        return prevIndex + 1;
+      });
+    }, speedMs[speed]);
 
-    setIngesting(true);
-    try {
-      const res = await api.ingestManualFeedback(ingestText);
-      toast('Feedback ingested successfully!', 'success');
-      setIngestText('');
-      fetchData(); // reload
-    } catch (err: any) {
-      toast(err.message || 'Feedback ingestion failed', 'error');
-    } finally {
-      setIngesting(false);
+    return () => clearInterval(interval);
+  }, [isPlaying, speed, approved]);
+
+  const handleStepSelect = (idx: number) => {
+    setIsPlaying(false);
+    setStepIndex(idx);
+    if (idx !== 3) {
+      setApproved(false);
     }
   };
 
-  const handleRunClustering = async () => {
-    setClustering(true);
-    try {
-      const res = await api.triggerClustering();
-      toast(`Clustering complete! Processed ${res.processed || 0} items.`, 'success');
-      fetchData();
-    } catch (err: any) {
-      toast(err.message || 'Failed to trigger clustering', 'error');
-    } finally {
-      setClustering(false);
-    }
+  const handleApprove = () => {
+    setApproved(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-        <p className="text-sm font-semibold text-slate-500">Loading ApeAI memory backbone...</p>
-      </div>
-    );
-  }
+  const handleReset = () => {
+    setStepIndex(0);
+    setApproved(false);
+    setIsPlaying(true);
+  };
 
   return (
-    <div className="space-y-8">
-      {/* Page Title & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Feedback Inbox</h2>
-          <p className="text-sm text-slate-500">AI-clustered customer signals awaiting product operation workflows.</p>
-        </div>
-        <button
-          onClick={handleRunClustering}
-          disabled={clustering}
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-lg shadow-sm disabled:opacity-50 transition-colors"
-        >
-          {clustering ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
-          Run AI Clustering
-        </button>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex items-center gap-4">
-          <div className="bg-blue-50 text-blue-600 p-3 rounded-lg">
-            <Inbox className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Raw Signals</p>
-            <h3 className="text-2xl font-extrabold text-slate-800">{stats.total}</h3>
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex items-center gap-4">
-          <div className="bg-indigo-50 text-indigo-600 p-3 rounded-lg">
-            <Layers className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generated Clusters</p>
-            <h3 className="text-2xl font-extrabold text-slate-800">{clusters.length}</h3>
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6 flex items-center gap-4">
-          <div className="bg-emerald-50 text-emerald-600 p-3 rounded-lg">
-            <BarChart2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Manual Ingestion</p>
-            <h3 className="text-2xl font-extrabold text-slate-800">{stats.by_source.manual || 0}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-500" />
-          <p className="text-sm font-medium">{error}</p>
-        </div>
-      )}
-
-      {/* Grid: Signals Input & Clusters List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="min-h-screen bg-white dark:bg-[#000000] text-slate-900 dark:text-zinc-100 transition-colors duration-300">
+      
+      {/* ENTERPRISE HERO SECTION */}
+      <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
         
-        {/* Left Column: Manual signal ingestion form */}
-        <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-800">Ingest Raw Signal</h3>
-              <p className="text-xs text-slate-500">Add user feedback manually to trigger AI parsing pipelines.</p>
-            </div>
-            <form onSubmit={handleIngest} className="space-y-3">
-              <textarea
-                value={ingestText}
-                onChange={(e) => setIngestText(e.target.value)}
-                placeholder="e.g. Visitors dashboard takes almost 5 seconds to load up. The latency is quite noticeable and annoying."
-                rows={4}
-                required
-                className="w-full text-sm border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              />
-              <button
-                type="submit"
-                disabled={ingesting || !ingestText.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg disabled:opacity-50 transition-colors"
-              >
-                {ingesting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                Submit Signal
-              </button>
-            </form>
+        {/* Professional SaaS Background: Grid + Soft Glow + Tech Accents (Breathtaking Visual Depth) */}
+        <div className="absolute inset-0 -z-10 h-full w-full bg-white dark:bg-black overflow-hidden">
+          {/* Visible Grid Patterns (Guaranteed CSS Render) */}
+          <div className="absolute inset-0 block dark:hidden premium-grid-light opacity-95"></div>
+          <div className="absolute inset-0 hidden dark:block premium-grid-dark opacity-100"></div>
+          
+          {/* Animated Monochromatic Ambient Top Glow */}
+          <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[1200px] h-[650px] opacity-45 dark:opacity-70 pointer-events-none blur-[140px] bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.45),rgba(100,116,139,0.2),transparent_70%)] animate-pulse-glow"></div>
+          
+          {/* Premium Technical Blueprint & Geometric Accents (No longer empty) */}
+          <div className="absolute inset-0 pointer-events-none opacity-30 dark:opacity-50 select-none">
+            {/* Spinning abstract dashed circles */}
+            <div className="absolute top-[-18%] left-1/2 -translate-x-1/2 w-[850px] h-[850px] border border-slate-200/60 dark:border-zinc-800/40 rounded-full border-dashed animate-[spin_180s_linear_infinite]" />
+            <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[650px] h-[650px] border border-slate-200/50 dark:border-zinc-800/30 rounded-full border-dashed animate-[spin_120s_linear_infinite_reverse]" />
+            
+            {/* Interactive blueprint crosshair coordinates */}
+            <svg className="absolute w-full h-full text-slate-300 dark:text-zinc-800" xmlns="http://www.w3.org/2000/svg">
+              {/* Crosshair 1 */}
+              <path d="M120 180h10M125 175v10" stroke="currentColor" strokeWidth="1.5" />
+              {/* Crosshair 2 */}
+              <path d="M880 140h10M885 135v10" stroke="currentColor" strokeWidth="1.5" />
+              {/* Crosshair 3 */}
+              <path d="M260 520h10M265 515v10" stroke="currentColor" strokeWidth="1.5" />
+              {/* Crosshair 4 */}
+              <path d="M780 580h10M785 575v10" stroke="currentColor" strokeWidth="1.5" />
+              {/* Dot Arrays */}
+              <circle cx="125" cy="400" r="1.5" fill="currentColor" />
+              <circle cx="125" cy="415" r="1.5" fill="currentColor" />
+              <circle cx="140" cy="400" r="1.5" fill="currentColor" />
+              <circle cx="140" cy="415" r="1.5" fill="currentColor" />
+              <circle cx="865" cy="460" r="1.5" fill="currentColor" />
+              <circle cx="865" cy="475" r="1.5" fill="currentColor" />
+              <circle cx="880" cy="460" r="1.5" fill="currentColor" />
+              <circle cx="880" cy="475" r="1.5" fill="currentColor" />
+            </svg>
           </div>
         </div>
-
-        {/* Right Column: Clusters list */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800">Active Signals Clusters</h3>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded">
-              {clusters.length} Groups
-            </span>
+        
+        <div className="max-w-[1000px] mx-auto px-6 text-center space-y-10">
+          
+          <div className="space-y-6">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1.05] text-slate-900 dark:text-white">
+              Stop writing tickets.<br />
+              <span className="text-slate-400 dark:text-zinc-500">Start building.</span>
+            </h1>
+            <p className="text-lg md:text-xl text-slate-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed font-medium tracking-tight">
+              ApeAI is the decoupled Product Operations engine. We ingest raw Slack signals, map vectors, draft Agile requirements, and sync to Jira automatically.
+            </p>
           </div>
 
-          {clusters.length === 0 ? (
-            <div className="bg-white border border-slate-200 border-dashed rounded-xl p-12 text-center flex flex-col items-center justify-center gap-4">
-              <Layers className="w-12 h-12 text-slate-300" />
-              <div>
-                <h4 className="font-bold text-slate-700">No Clusters Formed Yet</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Ingest some feedback signals and click the &quot;Run AI Clustering&quot; button to group them automatically using pgvector.
-                </p>
-              </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <Link
+              href="/dashboard"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black text-sm font-bold px-8 py-4 rounded-full transition-all duration-200"
+            >
+              Start Free Workspace
+            </Link>
+            <a
+              href="#interactive-sandbox"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-300 text-sm font-bold px-8 py-4 rounded-full transition-all duration-200"
+            >
+              Watch 1-Minute Demo
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* SOCIAL PROOF / INTEGRATIONS BANNER */}
+      <section className="pb-16 md:pb-24">
+        <div className="max-w-5xl mx-auto px-6 border-y border-slate-100 dark:border-zinc-900/50 py-10 text-center flex flex-col items-center">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-6">
+            Seamlessly integrates with your existing stack
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
+            <div className="flex items-center gap-2 font-bold text-xl"><Github className="w-6 h-6" /> GitHub</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><Trello className="w-6 h-6" /> Jira</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><LayoutGrid className="w-6 h-6" /> Linear</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><Slack className="w-6 h-6" /> Slack</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><MessageCircle className="w-6 h-6" /> Zendesk</div>
+          </div>
+        </div>
+      </section>
+
+      {/* INTERACTIVE DEMO SANDBOX (MAC FRAME STYLE) */}
+      <section id="interactive-sandbox" className="pb-24 max-w-[1100px] mx-auto px-6">
+        
+        {/* Sleek MacOS-like wrapper */}
+        <div className="relative border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-[#0a0a0a] shadow-[0_20px_50px_rgba(15,_23,_42,_0.05)] dark:shadow-[0_20px_60px_rgba(0,_0,_0,_0.8)] transition-all">
+          
+          {/* Top Address/Status Bar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-900 bg-slate-50/80 dark:bg-zinc-950/80">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-zinc-800" />
+              <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-zinc-800" />
+              <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-zinc-800" />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {clusters.map((cluster) => (
-                <div 
-                  key={cluster.id}
-                  className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow duration-200 flex flex-col sm:flex-row justify-between gap-4"
-                >
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h4 className="font-bold text-slate-800 text-base">{cluster.title}</h4>
-                      <StatusBadge status={cluster.status} />
-                    </div>
-                    <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
-                      {cluster.summary || 'Summary draft not generated yet. Trigger summarizing below.'}
-                    </p>
-                    <div className="flex items-center gap-4 text-xs font-semibold text-slate-400 mt-4">
-                      <span>Grouped signals: <strong className="text-slate-600">{cluster.feedback_count || 1}</strong></span>
-                      <span>Created: {new Date(cluster.created_at).toLocaleDateString()}</span>
+            
+            <div className="flex items-center justify-center text-[10px] font-bold text-slate-400 dark:text-zinc-500 font-mono select-none px-6 py-1 bg-white dark:bg-zinc-900 rounded-md border border-slate-200 dark:border-zinc-800">
+              api.apeai.io/sandbox/live
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-3 py-1 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] font-extrabold uppercase text-slate-600 dark:text-zinc-400 tracking-wider">
+                Step {stepIndex + 1}/4
+              </span>
+            </div>
+          </div>
+
+          {/* Screen Canvas (Inherited strictly from Fathom walkthrough structure) */}
+          <div className="min-h-[440px] p-8 md:p-12 transition-colors flex flex-col justify-center">
+            
+            {/* STAGE 1: INGESTION */}
+            {stepIndex === 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
+                <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6 flex flex-col justify-between">
+                  <div className="flex items-center gap-2.5 pb-4 border-b border-slate-200 dark:border-zinc-800">
+                    <Slack className="w-5 h-5 text-slate-700 dark:text-zinc-300" />
+                    <div>
+                      <h4 className="text-sm font-bold">#customer-feedback</h4>
+                      <p className="text-[10px] text-slate-500 font-medium">Socket Mode</p>
                     </div>
                   </div>
-
-                  <div className="flex flex-row sm:flex-col items-stretch justify-end gap-2.5 sm:w-44 border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-6">
-                    <Link
-                      href={`/pipeline/${cluster.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold py-2 rounded-lg transition-colors"
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      View Pipeline
-                    </Link>
-                    <Link
-                      href={`/review/${cluster.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold py-2 rounded-lg transition-colors"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Review AI Draft
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                  <div className="pt-4 space-y-2">
+                    <span className="text-xs font-bold">Saurabh (PM)</span>
+                    <div className="text-xs text-slate-600 dark:text-zinc-300 font-medium leading-relaxed bg-white dark:bg-zinc-900 p-4 rounded-lg border border-slate-200 dark:border-zinc-800 min-h-[100px]">
+                      {typewriterText}
+                      <span className="inline-block w-1.5 h-3.5 bg-slate-900 dark:bg-white ml-1 animate-pulse" />
+                    </div>
                   </div>
                 </div>
+
+                <div className="bg-[#0f172a] dark:bg-[#050505] border border-slate-800 dark:border-zinc-900 rounded-xl p-6 flex flex-col font-mono text-[11px] leading-relaxed text-zinc-300 shadow-inner">
+                  <div className="flex items-center gap-2 text-zinc-400 font-bold pb-4 border-b border-slate-800 dark:border-zinc-900">
+                    <Code className="w-4 h-4" /> Normalizer Webhook
+                  </div>
+                  <pre className="pt-4 overflow-x-auto whitespace-pre-wrap text-emerald-400 font-medium">
+{`{
+  "source": "slack",
+  "raw": "${typewriterText.length > 35 ? typewriterText.substring(0, 32) + '...' : typewriterText}",
+  "meta": {
+    "normalized": true,
+    "timestamp": "2026-05-21T08:15Z"
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* STAGE 2: pgvector SEMANTIC GROUPING */}
+            {stepIndex === 1 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
+                
+                <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6 flex flex-col justify-between">
+                  <div className="flex items-center gap-2 pb-4 border-b border-slate-200 dark:border-zinc-800">
+                    <Database className="w-4 h-4" />
+                    <h4 className="text-sm font-bold">pgvector Subspace</h4>
+                  </div>
+                  <div className="relative h-48 border border-slate-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-black mt-4 overflow-hidden">
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
+                    
+                    <div className="absolute top-[20%] left-[20%] w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-700" />
+                    <div className="absolute top-[25%] left-[28%] w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-700" />
+                    
+                    <div className="absolute bottom-[30%] right-[30%] w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-zinc-100 shadow-sm" />
+                    <div className="absolute bottom-[20%] right-[22%] w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-zinc-100 shadow-sm" />
+                    
+                    <div className="absolute bottom-[22%] right-[26%] w-4 h-4 rounded-full border-2 border-slate-900 dark:border-zinc-100 animate-ping" />
+                    
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50">
+                      <line x1="70%" y1="70%" x2="74%" y2="78%" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-slate-900 dark:text-zinc-100" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="bg-[#0f172a] dark:bg-[#050505] border border-slate-800 dark:border-zinc-900 rounded-xl p-6 flex flex-col font-mono text-[11px] leading-relaxed text-zinc-300">
+                  <div className="flex items-center gap-2 text-zinc-400 font-bold pb-4 border-b border-slate-800 dark:border-zinc-900">
+                    <Terminal className="w-4 h-4" /> Cluster Query Engine
+                  </div>
+                  <div className="pt-4 space-y-2">
+                    <p className="text-zinc-500">Executing pgvector cosine mapping...</p>
+                    <p>&gt; google.generativeai.embed_content()</p>
+                    <p>&gt; SELECT * FROM match_feedback(embed, 0.85)</p>
+                    <p className="text-white font-extrabold">&gt;&gt; Found 2 coordinate neighbors.</p>
+                    <p className="text-white font-extrabold">&gt;&gt; Distance Metric: 0.9419 (Match!)</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STAGE 3: GEMINI AI DECOMPOSE */}
+            {stepIndex === 2 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
+                <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6">
+                  <div className="flex items-center gap-2 pb-4 border-b border-slate-200 dark:border-zinc-800 mb-4">
+                    <FileText className="w-4 h-4" />
+                    <h4 className="text-sm font-bold">Synthesized Document</h4>
+                  </div>
+                  <div className="space-y-3 bg-white dark:bg-black p-4 rounded-lg border border-slate-200 dark:border-zinc-800">
+                    <h5 className="text-xs font-bold">PRD: Analytics CSV Exporter</h5>
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">
+                      "As a business analyst, I want to download historical feedback charts as raw CSV files..."
+                    </p>
+                    <div className="text-[10px] text-slate-500 list-disc pl-4 font-semibold pt-1">
+                      <li>Returns strict RFC 4180 format.</li>
+                      <li>Includes date parameter ranges.</li>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6">
+                  <div className="flex items-center gap-2 pb-4 border-b border-slate-200 dark:border-zinc-800 mb-4">
+                    <GitBranch className="w-4 h-4" />
+                    <h4 className="text-sm font-bold">Engineering Breakdown</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 bg-white dark:bg-black p-3 rounded-lg border border-slate-200 dark:border-zinc-800">
+                      <CheckSquare className="w-4 h-4 text-slate-900 dark:text-white shrink-0 mt-0.5" />
+                      <div>
+                        <h5 className="text-xs font-bold">Backend Task 1</h5>
+                        <p className="text-[10px] text-slate-500 font-medium">Create FastAPI `/feedback/export` GET route.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-white dark:bg-black p-3 rounded-lg border border-slate-200 dark:border-zinc-800">
+                      <Square className="w-4 h-4 text-slate-300 dark:text-zinc-700 shrink-0 mt-0.5" />
+                      <div>
+                        <h5 className="text-xs font-bold">Frontend Task 2</h5>
+                        <p className="text-[10px] text-slate-500 font-medium">Build UI download button + date picker.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STAGE 4: PUBLISH GATE */}
+            {stepIndex === 3 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
+                <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6 flex flex-col justify-center items-center text-center">
+                  {!approved ? (
+                    <>
+                      <div className="w-12 h-12 rounded-full border border-slate-200 dark:border-zinc-800 flex items-center justify-center mb-4">
+                        <MousePointerClick className="w-5 h-5 animate-bounce" />
+                      </div>
+                      <h5 className="text-sm font-bold mb-1">Human-in-the-Loop</h5>
+                      <p className="text-xs text-slate-500 max-w-xs mb-6">Review generated spec and push tasks to systems.</p>
+                      <button
+                        onClick={handleApprove}
+                        className="bg-slate-900 text-white dark:bg-white dark:text-black font-bold text-xs px-6 py-3 rounded-full hover:scale-105 transition-transform"
+                      >
+                        Approve & Sync
+                      </button>
+                    </>
+                  ) : (
+                    <div className="animate-fade-in flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-black flex items-center justify-center mb-4">
+                        <Check className="w-5 h-5 stroke-[3]" />
+                      </div>
+                      <h5 className="text-sm font-bold">Successfully Verified!</h5>
+                      <p className="text-xs text-slate-500">Hooks successfully dispatched.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[#0f172a] dark:bg-[#050505] border border-slate-800 dark:border-zinc-900 rounded-xl p-6 flex flex-col font-mono text-[11px] leading-relaxed text-zinc-300">
+                  <div className="flex items-center gap-2 text-zinc-400 font-bold pb-4 border-b border-slate-800 dark:border-zinc-900">
+                    <Activity className="w-4 h-4" /> Decoupled Integrations
+                  </div>
+                  <div className="pt-4 space-y-3">
+                    <div className="flex items-center justify-between border border-slate-800 dark:border-zinc-900 p-3 rounded-lg">
+                      <span className="font-bold">GitHub Issues</span>
+                      {approved ? <span className="text-white">#104 Created</span> : <span className="text-zinc-600">Pending Gate</span>}
+                    </div>
+                    <div className="flex items-center justify-between border border-slate-800 dark:border-zinc-900 p-3 rounded-lg">
+                      <span className="font-bold">Jira Cloud</span>
+                      {approved ? <span className="text-white">APE-82 Logged</span> : <span className="text-zinc-600">Pending Gate</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Controller Bar */}
+          <div className="flex items-center justify-center gap-8 p-5 border-t border-slate-100 dark:border-zinc-900 bg-white dark:bg-[#0a0a0a]">
+            <button onClick={() => setIsPlaying(!isPlaying)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            </button>
+            <div className="flex gap-2">
+              {[0, 1, 2, 3].map((idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleStepSelect(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${stepIndex === idx ? "w-8 bg-slate-900 dark:bg-white" : "w-2 bg-slate-200 dark:bg-zinc-800"}`}
+                />
               ))}
             </div>
-          )}
+            <button onClick={handleReset} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+      </section>
 
-      </div>
+      {/* ASYMMETRIC BENTO BOX FEATURES (Modern Fathom-style grids) */}
+      <section className="py-24 bg-slate-50 dark:bg-[#050505] border-y border-slate-200 dark:border-zinc-900">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-12 text-center text-slate-900 dark:text-white">
+            Engineered for <span className="text-slate-400 dark:text-zinc-500">Scale.</span>
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Bento 1: Large Span */}
+            <div className="md:col-span-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800 rounded-3xl p-10 flex flex-col justify-end min-h-[320px] relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-slate-100 dark:bg-zinc-800/50 rounded-full blur-3xl opacity-50 group-hover:scale-110 transition-transform duration-700" />
+              <Zap className="w-8 h-8 text-slate-900 dark:text-white mb-6 relative" />
+              <h3 className="text-3xl font-black tracking-tight mb-2 relative">Strictly Decoupled.</h3>
+              <p className="text-slate-500 dark:text-zinc-400 font-medium relative max-w-md">
+                Every architectural layer communicates exclusively via REST JSON. Zero tight coupling, allowing frictionless backend expansions.
+              </p>
+            </div>
+
+            {/* Bento 2: Standard Span */}
+            <div className="bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800 rounded-3xl p-10 flex flex-col justify-end relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-48 h-48 bg-slate-100 dark:bg-zinc-800/50 rounded-full blur-3xl opacity-50 group-hover:scale-110 transition-transform duration-700" />
+              <ShieldCheck className="w-8 h-8 text-slate-900 dark:text-white mb-6 relative" />
+              <h3 className="text-2xl font-black tracking-tight mb-2 relative">Human Gates.</h3>
+              <p className="text-slate-500 dark:text-zinc-400 text-sm font-medium relative">
+                AI outputs must be explicitly reviewed and approved by product managers before execution.
+              </p>
+            </div>
+
+            {/* Bento 3: Full Width Banner Component */}
+            <div className="md:col-span-3 bg-slate-900 dark:bg-[#0c0c0c] border border-slate-800 dark:border-zinc-800 rounded-3xl p-10 flex flex-col md:flex-row items-center justify-between overflow-hidden relative">
+              <div className="z-10 text-white mb-6 md:mb-0">
+                <CheckCircle2 className="w-8 h-8 text-white mb-6" />
+                <h3 className="text-3xl font-black tracking-tight mb-2">Duplicate Blockers.</h3>
+                <p className="text-slate-400 text-sm font-medium max-w-sm">
+                  Integrated database trackers map relational links, strictly preventing redundant ticket duplication inside your external agile workflows.
+                </p>
+              </div>
+              
+              {/* Mock UI Element representing the blocker */}
+              <div className="w-full md:w-96 bg-black/50 border border-slate-800 rounded-xl p-6 z-10 font-mono text-xs text-slate-300">
+                <div className="flex justify-between border-b border-slate-800 pb-2 mb-2">
+                  <span>POST /publish/jira</span>
+                  <span className="text-red-400 font-bold">409 CONFLICT</span>
+                </div>
+                <p>{"{"}</p>
+                <p className="pl-4">"error": "Duplicate action",</p>
+                <p className="pl-4">"details": "Epic APE-82 already tracks cluster #104."</p>
+                <p>{"}"}</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ZIG-ZAG ARCHITECTURE LAYERS (Atlassian Jira Style) */}
+      <section className="py-24 md:py-32 overflow-hidden bg-white dark:bg-[#000000]">
+        <div className="max-w-6xl mx-auto px-6 space-y-32">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-4">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 dark:text-white">
+              The Engine Stack.
+            </h2>
+            <p className="text-lg text-slate-500 dark:text-zinc-400 font-medium">
+              Explore how each decoupled module seamlessly transitions unstructured signals into agile velocity.
+            </p>
+          </div>
+
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div className="space-y-6 order-2 md:order-1">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-zinc-900 rounded-xl flex items-center justify-center">
+                <Inbox className="w-6 h-6 text-slate-900 dark:text-white" />
+              </div>
+              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Layer 1: Pluggable Ingestion</h3>
+              <p className="text-slate-500 dark:text-zinc-400 font-medium leading-relaxed">
+                ApeAI integrates directly into customer surfaces. Connect Slack Webhooks, Zendesk portals, or GitHub Issue streams. Incoming payload signals are instantly formatted and normalized inside our robust FastAPI middleware.
+              </p>
+            </div>
+            <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-zinc-900 rounded-2xl aspect-[4/3] flex items-center justify-center p-8">
+              {/* Mock graphic */}
+              <div className="w-full bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-lg p-6 space-y-4">
+                <div className="h-4 w-1/3 bg-slate-200 dark:bg-zinc-800 rounded" />
+                <div className="h-4 w-3/4 bg-slate-100 dark:bg-zinc-900 rounded" />
+                <div className="h-4 w-1/2 bg-slate-100 dark:bg-zinc-900 rounded" />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 (Reversed) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div className="bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-zinc-900 rounded-2xl aspect-[4/3] flex items-center justify-center p-8">
+              {/* Mock Vector Node graphic */}
+              <div className="relative w-full h-full">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-slate-300 dark:border-zinc-700 rounded-full animate-[spin_10s_linear_infinite]" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-slate-200 dark:border-zinc-800 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-slate-900 dark:bg-white rounded-full shadow-lg" />
+              </div>
+            </div>
+            <div className="space-y-6">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-zinc-900 rounded-xl flex items-center justify-center">
+                <Database className="w-6 h-6 text-slate-900 dark:text-white" />
+              </div>
+              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Layer 2: Relational Memory</h3>
+              <p className="text-slate-500 dark:text-zinc-400 font-medium leading-relaxed">
+                We leverage Supabase and the Postgres `pgvector` extension. Our engine creates 768-dimensional embeddings using Gemini, performing instant cosine-similarity queries to match and group thousands of disjointed customer requests autonomously.
+              </p>
+            </div>
+          </div>
+
+          {/* Row 3 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div className="space-y-6 order-2 md:order-1">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-zinc-900 rounded-xl flex items-center justify-center">
+                <Cpu className="w-6 h-6 text-slate-900 dark:text-white" />
+              </div>
+              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Layer 3: AI Decompose</h3>
+              <p className="text-slate-500 dark:text-zinc-400 font-medium leading-relaxed">
+                The grouped insight nodes are handed to the Google Gemini multi-stage agent. It drafts full Business Requirement Documents, splits them into structured User Stories, and recursively decomposes tickets into Frontend, Backend, and Test chunks.
+              </p>
+            </div>
+            <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-zinc-900 rounded-2xl aspect-[4/3] flex flex-col justify-center p-8 gap-3">
+              <div className="bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-3">
+                <CheckSquare className="w-4 h-4 text-slate-400" /> <span className="text-sm font-bold">API Backend Task</span>
+              </div>
+              <div className="bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-3 ml-6">
+                <Square className="w-4 h-4 text-slate-400" /> <span className="text-sm font-bold">Frontend UI Button</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-slate-200 dark:border-zinc-900 py-12 px-6 bg-white dark:bg-[#000000] text-center text-sm text-slate-500 dark:text-zinc-500">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2 font-black tracking-tight text-slate-900 dark:text-white">
+            <Cpu className="w-5 h-5" /> ApeAI.
+          </div>
+          <p className="font-medium">
+            © {new Date().getFullYear()} ApeAI. Engineered for Decoupled Product Operations.
+          </p>
+        </div>
+      </footer>
+
     </div>
   );
 }

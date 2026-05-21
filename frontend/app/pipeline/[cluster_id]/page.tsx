@@ -154,7 +154,7 @@ export default function PipelineTrackerPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-slate-900 dark:text-zinc-300 animate-spin" />
         <p className="text-sm font-semibold text-slate-500">Loading pipeline stepper...</p>
       </div>
     );
@@ -163,7 +163,7 @@ export default function PipelineTrackerPage() {
   if (error || !cluster) {
     return (
       <div className="space-y-4">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
           <ArrowLeft className="w-4 h-4" /> Back to Inbox
         </Link>
         <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl space-y-2">
@@ -236,7 +236,7 @@ export default function PipelineTrackerPage() {
     <div className="space-y-8">
       {/* Back & Breadcrumb */}
       <div className="space-y-4">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Inbox
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -249,7 +249,7 @@ export default function PipelineTrackerPage() {
           </div>
           <Link
             href={`/review/${clusterId}`}
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors"
           >
             <FileText className="w-4 h-4" />
             Review & Edit Drafts
@@ -271,8 +271,8 @@ export default function PipelineTrackerPage() {
               <div key={idx} className="relative">
                 {/* Stepper Dot */}
                 <div className={`absolute -left-[41px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border transition-colors ${
-                  isComplete ? 'bg-blue-600 text-white border-blue-600' :
-                  isActive ? 'bg-white text-blue-600 border-blue-500 shadow-sm shadow-blue-500/10' :
+                  isComplete ? 'bg-slate-900 text-white border-slate-900' :
+                  isActive ? 'bg-white text-slate-900 border-slate-900 shadow-sm shadow-slate-950/5' :
                   'bg-white text-slate-400 border-slate-200'
                 }`}>
                   {isComplete ? (
@@ -287,7 +287,7 @@ export default function PipelineTrackerPage() {
                   <div className="space-y-1">
                     <h4 className={`font-bold ${
                       isComplete ? 'text-slate-800' :
-                      isActive ? 'text-blue-600' :
+                      isActive ? 'text-slate-900 font-extrabold' :
                       'text-slate-400'
                     }`}>{step.title}</h4>
                     <p className="text-xs text-slate-500 max-w-xl leading-relaxed">{step.description}</p>
@@ -299,7 +299,7 @@ export default function PipelineTrackerPage() {
                       <button
                         onClick={step.action}
                         disabled={step.loading}
-                        className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold px-3.5 py-2 rounded-lg transition-colors border border-blue-200 disabled:opacity-50"
+                        className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-colors border border-slate-900 disabled:opacity-50"
                       >
                         {step.loading ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />

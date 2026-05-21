@@ -172,7 +172,7 @@ export default function DocumentReviewPage() {
   if (error || !cluster) {
     return (
       <div className="space-y-4">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
           <ArrowLeft className="w-4 h-4" /> Back to Inbox
         </Link>
         <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl space-y-2">
@@ -190,7 +190,7 @@ export default function DocumentReviewPage() {
       {/* Back & Title */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
+          <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Inbox
           </Link>
           <Link 

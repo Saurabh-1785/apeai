@@ -545,7 +545,7 @@ export default function DocumentReviewPage() {
   if (error || !cluster) {
     return (
       <div className="space-y-4">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
+        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
           <ArrowLeft className="w-4 h-4" /> Back to Inbox
         </Link>
         <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl space-y-2">
@@ -563,12 +563,12 @@ export default function DocumentReviewPage() {
       {/* Back & Title */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
+          <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Inbox
           </Link>
           <Link 
             href={`/pipeline/${clusterId}`}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+            className="text-xs font-semibold text-slate-800 hover:text-black dark:text-zinc-200 dark:hover:text-white bg-slate-100 dark:bg-zinc-900 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
           >
             <Layers className="w-3.5 h-3.5" />
             Open Stepper Pipeline
@@ -597,14 +597,14 @@ export default function DocumentReviewPage() {
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 lg:flex-initial flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left whitespace-nowrap lg:whitespace-normal ${
                     isActive 
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/10' 
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                      ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-sm' 
+                      : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900 hover:text-slate-950 dark:hover:text-white'
                   }`}
                 >
                   <span className="capitalize">{tab.toUpperCase()}</span>
                   {doc ? (
                     <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                      isActive ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-500'
+                      isActive ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-black' : 'bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400'
                     }`}>
                       v{doc.version}
                     </span>
@@ -630,7 +630,7 @@ export default function DocumentReviewPage() {
               </div>
               <Link
                 href={`/pipeline/${clusterId}`}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
               >
                 Go to Stepper Pipeline
               </Link>
@@ -707,7 +707,7 @@ export default function DocumentReviewPage() {
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700"
                   />
                 </div>
 
@@ -722,8 +722,8 @@ export default function DocumentReviewPage() {
                         onClick={() => setViewMode('preview')}
                         className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 flex items-center gap-1.5 ${
                           viewMode === 'preview'
-                            ? 'bg-white text-blue-600 shadow-xs'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-xs'
+                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
                         }`}
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -734,8 +734,8 @@ export default function DocumentReviewPage() {
                         onClick={() => setViewMode('edit')}
                         className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 flex items-center gap-1.5 ${
                           viewMode === 'edit'
-                            ? 'bg-white text-blue-600 shadow-xs'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-xs'
+                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
                         }`}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -749,7 +749,7 @@ export default function DocumentReviewPage() {
                       value={editContentText}
                       onChange={(e) => setEditContentText(e.target.value)}
                       rows={16}
-                      className="w-full text-xs font-mono border border-slate-200 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 focus:bg-white leading-relaxed"
+                      className="w-full text-xs font-mono border border-slate-200 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 bg-slate-50 dark:bg-zinc-900/40 focus:bg-white dark:focus:bg-zinc-950 leading-relaxed"
                     />
                   ) : (
                     <div className="border border-slate-100 rounded-xl bg-slate-50/20 p-6 min-h-[400px]">
@@ -801,7 +801,7 @@ export default function DocumentReviewPage() {
                     <button
                       onClick={handleApprove}
                       disabled={approving}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-150 text-white dark:text-black text-sm font-semibold px-5 py-2 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
                     >
                       {approving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

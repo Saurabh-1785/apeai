@@ -122,7 +122,7 @@ export default function IntegrationsPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-slate-900 dark:text-zinc-300 animate-spin" />
         <p className="text-sm font-semibold text-slate-500">Loading integrations settings...</p>
       </div>
     );
@@ -191,7 +191,7 @@ export default function IntegrationsPage() {
                     value={ghToken}
                     onChange={(e) => setGhToken(e.target.value)}
                     placeholder="ghp_..."
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="space-y-1">
@@ -201,7 +201,7 @@ export default function IntegrationsPage() {
                     value={ghRepo}
                     onChange={(e) => setGhRepo(e.target.value)}
                     placeholder="e.g. owner/repo"
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <button
@@ -225,7 +225,7 @@ export default function IntegrationsPage() {
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 text-white p-2 rounded-lg font-bold text-sm leading-none flex items-center justify-center w-9 h-9">
+              <div className="bg-slate-900 text-white p-2 rounded-lg font-bold text-sm leading-none flex items-center justify-center w-9 h-9">
                 JR
               </div>
               <div>
@@ -261,7 +261,7 @@ export default function IntegrationsPage() {
                     value={jiraUrl}
                     onChange={(e) => setJiraUrl(e.target.value)}
                     placeholder="https://company.atlassian.net"
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="space-y-1">
@@ -271,7 +271,7 @@ export default function IntegrationsPage() {
                     value={jiraEmail}
                     onChange={(e) => setJiraEmail(e.target.value)}
                     placeholder="name@company.com"
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="space-y-1">
@@ -281,7 +281,7 @@ export default function IntegrationsPage() {
                     value={jiraToken}
                     onChange={(e) => setJiraToken(e.target.value)}
                     placeholder="API Token secret"
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="space-y-1">
@@ -291,16 +291,16 @@ export default function IntegrationsPage() {
                     value={jiraProject}
                     onChange={(e) => setJiraProject(e.target.value)}
                     placeholder="e.g. PROJ"
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <button
                   onClick={() => handleConnect('jira')}
                   disabled={submitting !== null || !jiraUrl || !jiraEmail || !jiraToken || !jiraProject}
-                  className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
                 >
                   {submitting === 'jira' ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-300" />
                   ) : (
                     <Plus className="w-3.5 h-3.5" />
                   )}
@@ -315,7 +315,7 @@ export default function IntegrationsPage() {
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="bg-indigo-600 text-white p-2 rounded-lg font-bold text-sm leading-none flex items-center justify-center w-9 h-9">
+              <div className="bg-slate-900 text-white p-2 rounded-lg font-bold text-sm leading-none flex items-center justify-center w-9 h-9">
                 LN
               </div>
               <div>
@@ -351,7 +351,7 @@ export default function IntegrationsPage() {
                     value={linToken}
                     onChange={(e) => setLinToken(e.target.value)}
                     placeholder="lin_api_..."
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="space-y-1">
@@ -361,13 +361,13 @@ export default function IntegrationsPage() {
                     value={linTeam}
                     onChange={(e) => setLinTeam(e.target.value)}
                     placeholder="Linear Team UUID"
-                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <button
                   onClick={() => handleConnect('linear')}
                   disabled={submitting !== null || !linToken || !linTeam}
-                  className="w-full flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
                 >
                   {submitting === 'linear' ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
