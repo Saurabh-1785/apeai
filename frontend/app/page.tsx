@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  Cpu, 
-  Database, 
-  Inbox, 
-  Settings, 
+import {
+  Cpu,
+  Database,
+  Inbox,
+  Settings,
   ShieldCheck,
   Zap,
   CheckCircle2,
@@ -29,6 +29,10 @@ import {
   Trello,
   LayoutGrid
 } from 'lucide-react';
+import LiquidEther from '@/components/LiquidEther';
+import PgVectorStage from '@/components/PgVectorStage';
+import PgVectorSimilarityLayer from '@/components/PgVectorSimilarityLayer';
+import AgentDecomposeLayer from '@/components/AgentDecomposeLayer';
 
 export default function EnterpriseLandingPage() {
   // Sandbox Simulator State
@@ -66,7 +70,7 @@ export default function EnterpriseLandingPage() {
   // Autoplay loop timer
   useEffect(() => {
     if (!isPlaying) return;
-    
+
     const interval = setInterval(() => {
       setStepIndex((prevIndex) => {
         if (prevIndex === 3) {
@@ -100,25 +104,28 @@ export default function EnterpriseLandingPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#000000] text-slate-900 dark:text-zinc-100 transition-colors duration-300">
-      
+
       {/* ENTERPRISE HERO SECTION */}
-      <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
-        
+      <section className="relative z-0 pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
+
         {/* Professional SaaS Background: Grid + Soft Glow + Tech Accents (Breathtaking Visual Depth) */}
         <div className="absolute inset-0 -z-10 h-full w-full bg-white dark:bg-black overflow-hidden">
+          {/* WebGL Liquid Ether Background */}
+          <LiquidEther />
+
           {/* Visible Grid Patterns (Guaranteed CSS Render) */}
           <div className="absolute inset-0 block dark:hidden premium-grid-light opacity-95"></div>
           <div className="absolute inset-0 hidden dark:block premium-grid-dark opacity-100"></div>
-          
+
           {/* Animated Monochromatic Ambient Top Glow */}
           <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[1200px] h-[650px] opacity-45 dark:opacity-70 pointer-events-none blur-[140px] bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.45),rgba(100,116,139,0.2),transparent_70%)] animate-pulse-glow"></div>
-          
+
           {/* Premium Technical Blueprint & Geometric Accents (No longer empty) */}
           <div className="absolute inset-0 pointer-events-none opacity-30 dark:opacity-50 select-none">
             {/* Spinning abstract dashed circles */}
             <div className="absolute top-[-18%] left-1/2 -translate-x-1/2 w-[850px] h-[850px] border border-slate-200/60 dark:border-zinc-800/40 rounded-full border-dashed animate-[spin_180s_linear_infinite]" />
             <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[650px] h-[650px] border border-slate-200/50 dark:border-zinc-800/30 rounded-full border-dashed animate-[spin_120s_linear_infinite_reverse]" />
-            
+
             {/* Interactive blueprint crosshair coordinates */}
             <svg className="absolute w-full h-full text-slate-300 dark:text-zinc-800" xmlns="http://www.w3.org/2000/svg">
               {/* Crosshair 1 */}
@@ -141,9 +148,9 @@ export default function EnterpriseLandingPage() {
             </svg>
           </div>
         </div>
-        
+
         <div className="max-w-[1000px] mx-auto px-6 text-center space-y-10">
-          
+
           <div className="space-y-6">
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1.05] text-slate-900 dark:text-white">
               Stop writing tickets.<br />
@@ -189,10 +196,10 @@ export default function EnterpriseLandingPage() {
 
       {/* INTERACTIVE DEMO SANDBOX (MAC FRAME STYLE) */}
       <section id="interactive-sandbox" className="pb-24 max-w-[1100px] mx-auto px-6">
-        
+
         {/* Sleek MacOS-like wrapper */}
         <div className="relative border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-[#0a0a0a] shadow-[0_20px_50px_rgba(15,_23,_42,_0.05)] dark:shadow-[0_20px_60px_rgba(0,_0,_0,_0.8)] transition-all">
-          
+
           {/* Top Address/Status Bar */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-900 bg-slate-50/80 dark:bg-zinc-950/80">
             <div className="flex items-center gap-2">
@@ -200,7 +207,7 @@ export default function EnterpriseLandingPage() {
               <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-zinc-800" />
               <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-zinc-800" />
             </div>
-            
+
             <div className="flex items-center justify-center text-[10px] font-bold text-slate-400 dark:text-zinc-500 font-mono select-none px-6 py-1 bg-white dark:bg-zinc-900 rounded-md border border-slate-200 dark:border-zinc-800">
               api.apeai.io/sandbox/live
             </div>
@@ -215,7 +222,7 @@ export default function EnterpriseLandingPage() {
 
           {/* Screen Canvas (Inherited strictly from Fathom walkthrough structure) */}
           <div className="min-h-[440px] p-8 md:p-12 transition-colors flex flex-col justify-center">
-            
+
             {/* STAGE 1: INGESTION */}
             {stepIndex === 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
@@ -241,7 +248,7 @@ export default function EnterpriseLandingPage() {
                     <Code className="w-4 h-4" /> Normalizer Webhook
                   </div>
                   <pre className="pt-4 overflow-x-auto whitespace-pre-wrap text-emerald-400 font-medium">
-{`{
+                    {`{
   "source": "slack",
   "raw": "${typewriterText.length > 35 ? typewriterText.substring(0, 32) + '...' : typewriterText}",
   "meta": {
@@ -255,45 +262,7 @@ export default function EnterpriseLandingPage() {
             )}
 
             {/* STAGE 2: pgvector SEMANTIC GROUPING */}
-            {stepIndex === 1 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
-                
-                <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6 flex flex-col justify-between">
-                  <div className="flex items-center gap-2 pb-4 border-b border-slate-200 dark:border-zinc-800">
-                    <Database className="w-4 h-4" />
-                    <h4 className="text-sm font-bold">pgvector Subspace</h4>
-                  </div>
-                  <div className="relative h-48 border border-slate-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-black mt-4 overflow-hidden">
-                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:24px_24px] opacity-40" />
-                    
-                    <div className="absolute top-[20%] left-[20%] w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-700" />
-                    <div className="absolute top-[25%] left-[28%] w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-700" />
-                    
-                    <div className="absolute bottom-[30%] right-[30%] w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-zinc-100 shadow-sm" />
-                    <div className="absolute bottom-[20%] right-[22%] w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-zinc-100 shadow-sm" />
-                    
-                    <div className="absolute bottom-[22%] right-[26%] w-4 h-4 rounded-full border-2 border-slate-900 dark:border-zinc-100 animate-ping" />
-                    
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50">
-                      <line x1="70%" y1="70%" x2="74%" y2="78%" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-slate-900 dark:text-zinc-100" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="bg-[#0f172a] dark:bg-[#050505] border border-slate-800 dark:border-zinc-900 rounded-xl p-6 flex flex-col font-mono text-[11px] leading-relaxed text-zinc-300">
-                  <div className="flex items-center gap-2 text-zinc-400 font-bold pb-4 border-b border-slate-800 dark:border-zinc-900">
-                    <Terminal className="w-4 h-4" /> Cluster Query Engine
-                  </div>
-                  <div className="pt-4 space-y-2">
-                    <p className="text-zinc-500">Executing pgvector cosine mapping...</p>
-                    <p>&gt; google.generativeai.embed_content()</p>
-                    <p>&gt; SELECT * FROM match_feedback(embed, 0.85)</p>
-                    <p className="text-white font-extrabold">&gt;&gt; Found 2 coordinate neighbors.</p>
-                    <p className="text-white font-extrabold">&gt;&gt; Distance Metric: 0.9419 (Match!)</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            {stepIndex === 1 && <PgVectorStage />}
 
             {/* STAGE 3: GEMINI AI DECOMPOSE */}
             {stepIndex === 2 && (
@@ -415,11 +384,11 @@ export default function EnterpriseLandingPage() {
           <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-12 text-center text-slate-900 dark:text-white">
             Engineered for <span className="text-slate-400 dark:text-zinc-500">Scale.</span>
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* Bento 1: Large Span */}
-            <div className="md:col-span-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800 rounded-3xl p-10 flex flex-col justify-end min-h-[320px] relative overflow-hidden group">
+            <div className="md:col-span-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800 rounded-3xl p-10 flex flex-col justify-end min-h-[250px] relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-slate-100 dark:bg-zinc-800/50 rounded-full blur-3xl opacity-50 group-hover:scale-110 transition-transform duration-700" />
               <Zap className="w-8 h-8 text-slate-900 dark:text-white mb-6 relative" />
               <h3 className="text-3xl font-black tracking-tight mb-2 relative">Strictly Decoupled.</h3>
@@ -447,7 +416,7 @@ export default function EnterpriseLandingPage() {
                   Integrated database trackers map relational links, strictly preventing redundant ticket duplication inside your external agile workflows.
                 </p>
               </div>
-              
+
               {/* Mock UI Element representing the blocker */}
               <div className="w-full md:w-96 bg-black/50 border border-slate-800 rounded-xl p-6 z-10 font-mono text-xs text-slate-300">
                 <div className="flex justify-between border-b border-slate-800 pb-2 mb-2">
@@ -468,7 +437,7 @@ export default function EnterpriseLandingPage() {
       {/* ZIG-ZAG ARCHITECTURE LAYERS (Atlassian Jira Style) */}
       <section className="py-24 md:py-32 overflow-hidden bg-white dark:bg-[#000000]">
         <div className="max-w-6xl mx-auto px-6 space-y-32">
-          
+
           <div className="text-center max-w-2xl mx-auto space-y-4">
             <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 dark:text-white">
               The Engine Stack.
@@ -489,25 +458,98 @@ export default function EnterpriseLandingPage() {
                 ApeAI integrates directly into customer surfaces. Connect Slack Webhooks, Zendesk portals, or GitHub Issue streams. Incoming payload signals are instantly formatted and normalized inside our robust FastAPI middleware.
               </p>
             </div>
-            <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-zinc-900 rounded-2xl aspect-[4/3] flex items-center justify-center p-8">
-              {/* Mock graphic */}
-              <div className="w-full bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-lg p-6 space-y-4">
-                <div className="h-4 w-1/3 bg-slate-200 dark:bg-zinc-800 rounded" />
-                <div className="h-4 w-3/4 bg-slate-100 dark:bg-zinc-900 rounded" />
-                <div className="h-4 w-1/2 bg-slate-100 dark:bg-zinc-900 rounded" />
+            <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#121214] border border-slate-200 dark:border-zinc-800/80 rounded-2xl aspect-[4/3] flex flex-col items-center justify-center p-6 relative overflow-hidden group">
+              <style>{`
+                @keyframes routeDash {
+                  to {
+                    stroke-dashoffset: -20;
+                  }
+                }
+              `}</style>
+              
+              {/* Background ambient glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.03),transparent_60%)] pointer-events-none" />
+
+              <div className="w-full h-full flex flex-col justify-between relative">
+                {/* Header panel */}
+                <div className="flex items-center justify-between bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur border border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 rounded-xl shadow-sm text-[9px] font-mono font-bold text-slate-400 dark:text-zinc-500">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-slate-700 dark:text-zinc-300">INGESTION_ROUTER</span>
+                  </div>
+                  <span>ACTIVE STREAM</span>
+                </div>
+
+                {/* Main workflow visualization */}
+                <div className="flex-1 flex items-center justify-between gap-4 py-4 relative">
+                  {/* Left: Input Channels Stack */}
+                  <div className="flex flex-col gap-2.5 w-[44%] z-10">
+                    {/* Slack Channel */}
+                    <div className="flex items-center gap-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-lg shadow-sm group-hover:translate-x-1 transition-transform duration-300">
+                      <Slack className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">Slack</p>
+                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">#customer-feedback</p>
+                      </div>
+                    </div>
+
+                    {/* Zendesk Channel */}
+                    <div className="flex items-center gap-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-lg shadow-sm group-hover:translate-x-1.5 transition-transform duration-300">
+                      <MessageCircle className="w-3.5 h-3.5 text-cyan-500 shrink-0 animate-pulse" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">Zendesk Portal</p>
+                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">Ticket #108</p>
+                      </div>
+                    </div>
+
+                    {/* GitHub Channel */}
+                    <div className="flex items-center gap-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-lg shadow-sm group-hover:translate-x-1 transition-transform duration-300">
+                      <Github className="w-3.5 h-3.5 text-slate-800 dark:text-zinc-300 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">GitHub Issues</p>
+                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">Repo Issue Stream</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle: SVG Connection Lasers / Flow Arrows */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50 dark:opacity-75" viewBox="0 0 320 180" fill="none" style={{ zIndex: 0 }}>
+                    <path d="M 115 48 Q 155 48 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-purple-500/80 dark:text-purple-400/80" style={{ animation: 'routeDash 1.5s linear infinite' }} />
+                    <path d="M 115 90 L 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-cyan-500/80 dark:text-cyan-400/80" style={{ animation: 'routeDash 1.5s linear infinite' }} />
+                    <path d="M 115 132 Q 155 132 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-slate-400 dark:text-zinc-500" style={{ animation: 'routeDash 1.5s linear infinite' }} />
+                  </svg>
+
+                  {/* Right: Central Router Card / Normalized Output */}
+                  <div className="w-[45%] bg-slate-900 border border-slate-800 rounded-xl shadow-lg p-3 flex flex-col justify-between h-[130px] z-10 font-mono text-[8.5px] text-zinc-300">
+                    <div className="flex items-center gap-1.5 text-zinc-400 pb-1.5 border-b border-slate-800">
+                      <Code className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="font-bold uppercase text-[7.5px] tracking-wider text-zinc-300">Router API v1.0</span>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-center gap-1 py-1.5">
+                      <p className="text-emerald-400 font-bold text-[7.5px]">✓ Ingesting signal</p>
+                      <pre className="text-zinc-400 text-[7px] leading-tight overflow-hidden">
+{`{
+  "source": "slack",
+  "status": "valid",
+  "data_id": "9218"
+}`}
+                      </pre>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-slate-800 text-[6.5px] text-zinc-500 text-right">
+                      100% Normalized
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Row 2 (Reversed) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-            <div className="bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-zinc-900 rounded-2xl aspect-[4/3] flex items-center justify-center p-8">
-              {/* Mock Vector Node graphic */}
-              <div className="relative w-full h-full">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-slate-300 dark:border-zinc-700 rounded-full animate-[spin_10s_linear_infinite]" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-slate-200 dark:border-zinc-800 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-slate-900 dark:bg-white rounded-full shadow-lg" />
-              </div>
+            <div className="bg-slate-50 dark:bg-[#121214] border border-slate-200 dark:border-zinc-800/80 rounded-2xl aspect-[4/3] flex flex-col items-center justify-center p-6 relative overflow-hidden group">
+              <PgVectorSimilarityLayer />
             </div>
             <div className="space-y-6">
               <div className="w-12 h-12 bg-slate-100 dark:bg-zinc-900 rounded-xl flex items-center justify-center">
@@ -531,13 +573,8 @@ export default function EnterpriseLandingPage() {
                 The grouped insight nodes are handed to the Google Gemini multi-stage agent. It drafts full Business Requirement Documents, splits them into structured User Stories, and recursively decomposes tickets into Frontend, Backend, and Test chunks.
               </p>
             </div>
-            <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-zinc-900 rounded-2xl aspect-[4/3] flex flex-col justify-center p-8 gap-3">
-              <div className="bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-3">
-                <CheckSquare className="w-4 h-4 text-slate-400" /> <span className="text-sm font-bold">API Backend Task</span>
-              </div>
-              <div className="bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-zinc-800 p-4 rounded-xl flex items-center gap-3 ml-6">
-                <Square className="w-4 h-4 text-slate-400" /> <span className="text-sm font-bold">Frontend UI Button</span>
-              </div>
+            <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#121214] border border-slate-200 dark:border-zinc-800/80 rounded-2xl aspect-[4/3] flex flex-col items-center justify-center p-6 relative overflow-hidden group">
+              <AgentDecomposeLayer />
             </div>
           </div>
 

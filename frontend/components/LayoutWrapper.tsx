@@ -4,14 +4,14 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ToastProvider } from '@/components/ui/ToastProvider';
-import { 
-  Inbox, 
-  Settings, 
-  ShieldAlert, 
-  Cpu, 
-  Sun, 
-  Moon, 
-  Menu, 
+import {
+  Inbox,
+  Settings,
+  ShieldAlert,
+  Cpu,
+  Sun,
+  Moon,
+  Menu,
   X,
   Compass,
   ArrowRight
@@ -33,10 +33,10 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
     setMounted(true);
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
+
     const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
     setTheme(initialTheme);
-    
+
     if (initialTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -48,7 +48,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(nextTheme);
     localStorage.setItem('theme', nextTheme);
-    
+
     if (nextTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -87,7 +87,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
                   <p className="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest -mt-1 transition-colors">Product Ops</p>
                 </div>
               </Link>
-              
+
               <div className="flex items-center gap-4">
                 <button
                   onClick={toggleTheme}
@@ -98,15 +98,15 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
                 </button>
                 <Link
                   href="/dashboard"
-                  className="hidden sm:inline-flex items-center gap-1.5 bg-slate-900 dark:bg-white hover:bg-black dark:hover:bg-zinc-200 text-white dark:text-black text-sm font-semibold px-4.5 py-2.5 rounded-xl transition-all duration-300 shadow-md shadow-slate-900/10 hover:shadow-slate-900/20"
+                  className="hidden sm:inline-flex items-center gap-1.5 bg-slate-900 dark:bg-white hover:bg-black dark:hover:bg-zinc-200 text-white dark:text-black text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-md shadow-slate-900/10 hover:shadow-slate-900/20"
                 >
-                  Go to Dashboard
+                  Dashboard
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
           </header>
-          
+
           <main className="animate-fade-in">{children}</main>
         </div>
       </ToastProvider>
@@ -117,7 +117,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   return (
     <ToastProvider>
       <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 flex transition-colors duration-300">
-        
+
         {/* Sidebar Navigation - Desktop */}
         <aside className="w-64 border-r border-slate-200 dark:border-zinc-900 bg-white dark:bg-[#09090b] hidden md:flex flex-col fixed h-full z-20 transition-colors">
           {/* Branding */}
@@ -137,27 +137,25 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           <nav className="flex-1 py-6 px-4 space-y-1.5">
             <Link
               href="/dashboard"
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                pathname === '/dashboard'
-                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
-              }`}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/dashboard'
+                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
+                }`}
             >
               <Inbox className={`w-4 h-4 ${pathname === '/dashboard' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
               Feedback Inbox
             </Link>
             <Link
               href="/integrations"
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                pathname === '/integrations'
-                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
-              }`}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/integrations'
+                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
+                }`}
             >
               <Settings className={`w-4 h-4 ${pathname === '/integrations' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
               Integrations
             </Link>
-            
+
             <div className="pt-4 mt-4 border-t border-slate-100 dark:border-zinc-900">
               <Link
                 href="/"
@@ -181,7 +179,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
         {/* Sidebar Navigation - Mobile Drawer */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 md:hidden backdrop-blur-sm animate-fade-in" onClick={() => setMobileMenuOpen(false)}>
-            <aside 
+            <aside
               className="w-64 h-full bg-white dark:bg-[#09090b] border-r border-slate-200 dark:border-zinc-900 flex flex-col p-6 animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >
@@ -190,7 +188,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
                   <Cpu className="w-5 h-5 text-slate-900 dark:text-white" />
                   <span className="font-bold text-slate-900 dark:text-white">ApeAI</span>
                 </Link>
-                <button 
+                <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-1 rounded-lg border border-slate-200 dark:border-zinc-800"
                 >
@@ -202,11 +200,10 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    pathname === '/dashboard'
-                      ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
-                      : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
-                  }`}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard'
+                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
+                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
+                    }`}
                 >
                   <Inbox className="w-4 h-4" />
                   Feedback Inbox
@@ -214,11 +211,10 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
                 <Link
                   href="/integrations"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    pathname === '/integrations'
-                      ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
-                      : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
-                  }`}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/integrations'
+                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
+                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
+                    }`}
                 >
                   <Settings className="w-4 h-4" />
                   Integrations
@@ -247,17 +243,17 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
         <div className="flex-1 md:pl-64 flex flex-col min-h-screen">
           {/* Top Header */}
           <header className="h-16 border-b border-slate-200 dark:border-zinc-900 bg-white dark:bg-[#000000] sticky top-0 z-10 flex items-center justify-between px-6 md:px-8 transition-colors">
-            
+
             {/* Sidebar toggle for mobile */}
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setMobileMenuOpen(true)}
                 className="p-2 md:hidden border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg"
                 aria-label="Open sidebar"
               >
                 <Menu className="w-4 h-4" />
               </button>
-              
+
               <div className="text-xs text-slate-400 hidden sm:block">
                 Server Status: <span className="font-semibold text-slate-900 dark:text-white">Online</span>
               </div>
@@ -273,7 +269,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
               >
                 {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </button>
-              
+
               <div className="h-8 w-8 rounded-full bg-slate-900 dark:bg-white flex items-center justify-center text-xs font-bold text-white dark:text-black">
                 AD
               </div>
