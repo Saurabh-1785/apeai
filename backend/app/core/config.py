@@ -17,12 +17,7 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
 
-    # ── Slack (Optional) ─────────────────────────────────
-    slack_bot_token: Optional[str] = None
-    slack_app_token: Optional[str] = None
 
-    # ── GitHub (Optional) ────────────────────────────────
-    github_webhook_secret: Optional[str] = None
 
     # ── Google AI (Required for Layer 2+ embeddings) ─────
     google_api_key: Optional[str] = None
@@ -36,6 +31,7 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
+        "extra": "ignore",
     }
 
     @property
@@ -43,15 +39,7 @@ class Settings(BaseSettings):
         """Check if Supabase credentials are provided."""
         return bool(self.supabase_url and self.supabase_key)
 
-    @property
-    def slack_configured(self) -> bool:
-        """Check if Slack credentials are provided."""
-        return bool(self.slack_bot_token and self.slack_app_token)
 
-    @property
-    def github_configured(self) -> bool:
-        """Check if GitHub webhook secret is provided."""
-        return bool(self.github_webhook_secret)
 
     @property
     def google_configured(self) -> bool:

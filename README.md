@@ -25,14 +25,12 @@ ApeAI is built with a strictly modular architecture where **every layer is decou
 ## Layer-by-Layer Working
 
 ### Layer 1 — Ingestion (Collecting Feedback)
-Layer 1 acts as the gateway for raw feedback from multiple customer-facing platforms. Each feedback channel is represented by an independent, pluggable module in the FastAPI backend:
-* **Manual Input / Paste**: Simple text areas and CSV upload options in the frontend dashboard that POST payloads directly to backend endpoints.
-* **Slack Integration**: Utilizes the **Slack Bolt SDK for Python** in **Socket Mode**. It listens for messages in specified product-feedback channels and dynamically forwards them to the ingestion service.
-* **Email Ingestion**: Exposes a clean webhook compatible with inbound JSON mail dispatchers (like Mailgun or Postmark).
-* **GitHub Issues Ingestion**: Registers GitHub Webhooks to capture newly opened issues and comments directly.
+Layer 1 acts as the gateway for raw feedback. It supports two primary, unified methods for ingestion in the FastAPI backend:
+* **Manual Input / Paste**: A simple text input area in the frontend dashboard that POSTs payloads directly to backend endpoints.
+* **CSV Batch Upload**: An integrated CSV file parser and batch uploader in the frontend dashboard that allows teams to ingest historical spreadsheets or lists of raw customer signals.
 
 > [!NOTE]
-> **Modular Normalization**: Regardless of whether a feedback item comes from a Slack chat, an email, or a GitHub issue, Layer 1 normalizes the payload into a **single, unified JSON format** containing `content`, `source`, `author`, and optional `metadata` before saving.
+> **Modular Normalization**: Regardless of whether a feedback item is pasted manually or uploaded in a batch CSV, Layer 1 normalizes the payload into a **single, unified JSON format** containing `content`, `source`, `author`, and optional `metadata` before saving.
 
 ---
 

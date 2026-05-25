@@ -25,8 +25,7 @@ from backend.app.db.supabase_client import check_supabase_connection
 from backend.app.models.feedback import HealthResponse, StatsResponse
 
 # Layer 1 routes
-from backend.app.routes import manual, github, email
-from backend.app.routes.slack import start_slack_listener, stop_slack_listener
+from backend.app.routes import manual
 
 # Layer 2 routes
 from backend.app.routes import embeddings, clusters
@@ -73,20 +72,14 @@ async def lifespan(app: FastAPI):
     # Report configuration status
     logger.info(f"  Supabase:  {'✅ configured' if settings.supabase_configured else '❌ not configured'}")
     logger.info(f"  Google AI: {'✅ configured' if settings.google_configured else '⏭️  not configured (needed for embeddings)'}")
-    logger.info(f"  Slack:     {'✅ configured' if settings.slack_configured else '⏭️  not configured (optional)'}")
-    logger.info(f"  GitHub:    {'✅ configured' if settings.github_configured else '⏭️  not configured (optional)'}")
-    logger.info(f"  Email:     ✅ endpoint ready (no config needed)")
+    logger.info(f"  Ingestion: ✅ manual and csv endpoints ready")
     logger.info("-" * 60)
 
-    # Start Slack listener if configured
-    if settings.slack_configured:
-        start_slack_listener()
+
 
     yield
 
-    # ── Shutdown ──
     logger.info("🦍 ApeAI shutting down...")
-    stop_slack_listener()
 
 
 # ─── Create FastAPI App ────────────────────────────────────
@@ -145,8 +138,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(manual.router)
-app.include_router(github.router)
-app.include_router(email.router)
 
 
 # ─── Mount Layer 2 Routes (Storage) ───────────────────────
@@ -225,8 +216,6 @@ async def root():
             "layer_1_ingestion": {
                 "manual_feedback": "POST /feedback/manual",
                 "csv_upload": "POST /feedback/csv",
-                "github_webhook": "POST /feedback/github",
-                "email_webhook": "POST /feedback/email",
                 "stats": "GET /feedback/stats",
             },
             "layer_2_storage": {

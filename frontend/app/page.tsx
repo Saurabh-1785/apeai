@@ -157,7 +157,7 @@ export default function EnterpriseLandingPage() {
               <span className="text-slate-400 dark:text-zinc-500">Start building.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed font-medium tracking-tight">
-              ApeAI is the decoupled Product Operations engine. We ingest raw Slack signals, map vectors, draft Agile requirements, and sync to Jira automatically.
+              ApeAI is the decoupled Product Operations engine. We ingest raw feedback signals, map vectors, draft Agile requirements, and sync to Jira automatically.
             </p>
           </div>
 
@@ -188,8 +188,6 @@ export default function EnterpriseLandingPage() {
             <div className="flex items-center gap-2 font-bold text-xl"><Github className="w-6 h-6" /> GitHub</div>
             <div className="flex items-center gap-2 font-bold text-xl"><Trello className="w-6 h-6" /> Jira</div>
             <div className="flex items-center gap-2 font-bold text-xl"><LayoutGrid className="w-6 h-6" /> Linear</div>
-            <div className="flex items-center gap-2 font-bold text-xl"><Slack className="w-6 h-6" /> Slack</div>
-            <div className="flex items-center gap-2 font-bold text-xl"><MessageCircle className="w-6 h-6" /> Zendesk</div>
           </div>
         </div>
       </section>
@@ -228,10 +226,10 @@ export default function EnterpriseLandingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch h-full animate-fade-in">
                 <div className="bg-slate-50 dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-900 rounded-xl p-6 flex flex-col justify-between">
                   <div className="flex items-center gap-2.5 pb-4 border-b border-slate-200 dark:border-zinc-800">
-                    <Slack className="w-5 h-5 text-slate-700 dark:text-zinc-300" />
+                    <FileText className="w-5 h-5 text-slate-700 dark:text-zinc-300" />
                     <div>
-                      <h4 className="text-sm font-bold">#customer-feedback</h4>
-                      <p className="text-[10px] text-slate-500 font-medium">Socket Mode</p>
+                      <h4 className="text-sm font-bold">Feedback Ingestion Console</h4>
+                      <p className="text-[10px] text-slate-500 font-medium">Manual Paste</p>
                     </div>
                   </div>
                   <div className="pt-4 space-y-2">
@@ -245,11 +243,11 @@ export default function EnterpriseLandingPage() {
 
                 <div className="bg-[#0f172a] dark:bg-[#050505] border border-slate-800 dark:border-zinc-900 rounded-xl p-6 flex flex-col font-mono text-[11px] leading-relaxed text-zinc-300 shadow-inner">
                   <div className="flex items-center gap-2 text-zinc-400 font-bold pb-4 border-b border-slate-800 dark:border-zinc-900">
-                    <Code className="w-4 h-4" /> Normalizer Webhook
+                    <Code className="w-4 h-4" /> Normalizer Endpoint
                   </div>
                   <pre className="pt-4 overflow-x-auto whitespace-pre-wrap text-emerald-400 font-medium">
                     {`{
-  "source": "slack",
+  "source": "manual",
   "raw": "${typewriterText.length > 35 ? typewriterText.substring(0, 32) + '...' : typewriterText}",
   "meta": {
     "normalized": true,
@@ -453,9 +451,9 @@ export default function EnterpriseLandingPage() {
               <div className="w-12 h-12 bg-slate-100 dark:bg-zinc-900 rounded-xl flex items-center justify-center">
                 <Inbox className="w-6 h-6 text-slate-900 dark:text-white" />
               </div>
-              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Layer 1: Pluggable Ingestion</h3>
+              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Layer 1: Unified Ingestion</h3>
               <p className="text-slate-500 dark:text-zinc-400 font-medium leading-relaxed">
-                ApeAI integrates directly into customer surfaces. Connect Slack Webhooks, Zendesk portals, or GitHub Issue streams. Incoming payload signals are instantly formatted and normalized inside our robust FastAPI middleware.
+                Upload CSV spreadsheets or paste raw feedback directly. Unstructured customer feedback signals are instantly parsed, structured, and normalized inside our robust FastAPI middleware.
               </p>
             </div>
             <div className="order-1 md:order-2 bg-slate-50 dark:bg-[#121214] border border-slate-200 dark:border-zinc-800/80 rounded-2xl aspect-[4/3] flex flex-col items-center justify-center p-6 relative overflow-hidden group">
@@ -483,40 +481,30 @@ export default function EnterpriseLandingPage() {
                 {/* Main workflow visualization */}
                 <div className="flex-1 flex items-center justify-between gap-4 py-4 relative">
                   {/* Left: Input Channels Stack */}
-                  <div className="flex flex-col gap-2.5 w-[44%] z-10">
-                    {/* Slack Channel */}
+                  <div className="flex flex-col gap-3.5 w-[44%] z-10">
+                    {/* Manual Text Channel */}
                     <div className="flex items-center gap-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-lg shadow-sm group-hover:translate-x-1 transition-transform duration-300">
-                      <Slack className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                      <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">Slack</p>
-                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">#customer-feedback</p>
+                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">Manual Text</p>
+                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">Text / Paste Console</p>
                       </div>
                     </div>
 
-                    {/* Zendesk Channel */}
+                    {/* CSV Ingestion */}
                     <div className="flex items-center gap-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-lg shadow-sm group-hover:translate-x-1.5 transition-transform duration-300">
-                      <MessageCircle className="w-3.5 h-3.5 text-cyan-500 shrink-0 animate-pulse" />
+                      <Inbox className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">Zendesk Portal</p>
-                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">Ticket #108</p>
-                      </div>
-                    </div>
-
-                    {/* GitHub Channel */}
-                    <div className="flex items-center gap-2 bg-white dark:bg-[#0c0c0c] border border-slate-200 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-lg shadow-sm group-hover:translate-x-1 transition-transform duration-300">
-                      <Github className="w-3.5 h-3.5 text-slate-800 dark:text-zinc-300 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">GitHub Issues</p>
-                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">Repo Issue Stream</p>
+                        <p className="text-[9px] font-bold text-slate-800 dark:text-zinc-200 truncate">CSV Spreadsheet</p>
+                        <p className="text-[7.5px] text-slate-400 dark:text-zinc-500 font-mono truncate">Batch Feed Uploads</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Middle: SVG Connection Lasers / Flow Arrows */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50 dark:opacity-75" viewBox="0 0 320 180" fill="none" style={{ zIndex: 0 }}>
-                    <path d="M 115 48 Q 155 48 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-purple-500/80 dark:text-purple-400/80" style={{ animation: 'routeDash 1.5s linear infinite' }} />
-                    <path d="M 115 90 L 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-cyan-500/80 dark:text-cyan-400/80" style={{ animation: 'routeDash 1.5s linear infinite' }} />
-                    <path d="M 115 132 Q 155 132 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-slate-400 dark:text-zinc-500" style={{ animation: 'routeDash 1.5s linear infinite' }} />
+                    <path d="M 115 65 Q 155 65 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-blue-500/80 dark:text-blue-400/80" style={{ animation: 'routeDash 1.5s linear infinite' }} />
+                    <path d="M 115 115 Q 155 115 175 90" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,4" className="text-emerald-500/80 dark:text-emerald-400/80" style={{ animation: 'routeDash 1.5s linear infinite' }} />
                   </svg>
 
                   {/* Right: Central Router Card / Normalized Output */}
@@ -530,7 +518,7 @@ export default function EnterpriseLandingPage() {
                       <p className="text-emerald-400 font-bold text-[7.5px]">✓ Ingesting signal</p>
                       <pre className="text-zinc-400 text-[7px] leading-tight overflow-hidden">
 {`{
-  "source": "slack",
+  "source": "manual",
   "status": "valid",
   "data_id": "9218"
 }`}

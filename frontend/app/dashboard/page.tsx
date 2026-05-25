@@ -6,6 +6,7 @@ import { api } from '@/services/api';
 import { Cluster } from '@/types/models';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { RecentFeedbacks } from '@/components/RecentFeedbacks';
 import { 
   Inbox, 
   Plus, 
@@ -21,7 +22,8 @@ import {
   ArrowUpRight,
   FileCheck2,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Upload
 } from 'lucide-react';
 
 export default function FeedbackInboxPage() {
@@ -32,8 +34,6 @@ export default function FeedbackInboxPage() {
   const [error, setError] = useState<string | null>(null);
   
   // Action states
-  const [ingestText, setIngestText] = useState('');
-  const [ingesting, setIngesting] = useState(false);
   const [clustering, setClustering] = useState(false);
 
   const fetchData = async () => {
@@ -55,23 +55,6 @@ export default function FeedbackInboxPage() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleIngest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ingestText.trim()) return;
-
-    setIngesting(true);
-    try {
-      await api.ingestManualFeedback(ingestText);
-      toast('Raw signal ingested successfully!', 'success');
-      setIngestText('');
-      fetchData(); // reload
-    } catch (err: any) {
-      toast(err.message || 'Feedback ingestion failed', 'error');
-    } finally {
-      setIngesting(false);
-    }
-  };
 
   const handleRunClustering = async () => {
     setClustering(true);
@@ -142,7 +125,7 @@ export default function FeedbackInboxPage() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Metric 1 */}
         <div className="group relative bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-2xl p-6 flex items-center gap-5 shadow-2xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden">
@@ -184,6 +167,19 @@ export default function FeedbackInboxPage() {
           </div>
         </div>
 
+        {/* Metric 4 */}
+        <div className="group relative bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-2xl p-6 flex items-center gap-5 shadow-2xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 p-3.5 rounded-xl border border-blue-500/10 group-hover:scale-110 transition-transform duration-300 shrink-0">
+            <FileText className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">CSV Signals</p>
+            <h3 className="text-3xl font-extrabold text-slate-800 dark:text-zinc-100 tracking-tight mt-1">{stats.by_source.csv || 0}</h3>
+          </div>
+        </div>
+
       </div>
 
       {/* Error Alert */}
@@ -194,57 +190,14 @@ export default function FeedbackInboxPage() {
         </div>
       )}
 
-      {/* Grid Content: Signal Ingest Form (Left) & Clusters Matrix (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        
-        {/* Left Column: Manual signal ingestion form */}
-        <div className="space-y-6 lg:sticky lg:top-24">
-          <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-2xl p-6 shadow-2xs space-y-5">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-800 dark:text-zinc-200 tracking-tight flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-slate-800 dark:text-zinc-200" />
-                Ingest Raw Signal
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed font-semibold">
-                Provide customer feedback text here to embed and cluster automatically in the relational vector space.
-              </p>
-            </div>
-            
-            <form onSubmit={handleIngest} className="space-y-4">
-              <div className="relative">
-                <textarea
-                  value={ingestText}
-                  onChange={(e) => setIngestText(e.target.value)}
-                  placeholder="e.g., The analytics dashboard rendering speed has dropped significantly. Takes 6 seconds to fetch standard views."
-                  rows={5}
-                  required
-                  className="w-full text-xs font-semibold bg-slate-50/50 dark:bg-zinc-900/40 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 transition-all duration-300 resize-none leading-relaxed"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={ingesting || !ingestText.trim()}
-                className="group w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-white text-sm font-bold py-3 rounded-xl disabled:opacity-50 active:scale-[0.99] transition-all duration-200 shrink-0"
-              >
-                {ingesting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                )}
-                <span>Submit Signal</span>
-              </button>
-            </form>
-          </div>
+      {/* Content: Full-width Clusters Matrix */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Active Feedback Clusters</h3>
+          <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 px-3 py-1 rounded-lg border dark:border-zinc-800">
+            {clusters.length} Active Themes
+          </span>
         </div>
-
-        {/* Right Column: Clusters list */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Active Feedback Clusters</h3>
-            <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 px-3 py-1 rounded-lg border dark:border-zinc-800">
-              {clusters.length} Active Themes
-            </span>
-          </div>
 
           {clusters.length === 0 ? (
             <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 border-dashed rounded-2xl p-16 text-center flex flex-col items-center justify-center gap-4 transition-colors duration-300">
@@ -316,8 +269,9 @@ export default function FeedbackInboxPage() {
             </div>
           )}
         </div>
-
-      </div>
+      
+      {/* Recent Feedbacks List */}
+      <RecentFeedbacks />
     </div>
   );
 }

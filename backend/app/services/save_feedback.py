@@ -114,3 +114,27 @@ async def get_feedback_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to get feedback stats: {e}")
         return {"total": 0, "by_source": {}, "error": str(e)}
+
+
+async def get_recent_feedbacks(limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Get recent raw feedback from the database.
+    
+    Args:
+        limit: Number of items to fetch.
+        
+    Returns:
+        List of recent feedback items.
+    """
+    client = get_supabase_client()
+
+    try:
+        response = client.table("feedback").select("*").order("created_at", desc=True).limit(limit).execute()
+
+        if response.data:
+            return response.data
+        return []
+
+    except Exception as e:
+        logger.error(f"Failed to fetch recent feedbacks: {e}")
+        return []

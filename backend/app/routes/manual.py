@@ -64,6 +64,21 @@ async def upload_manual_feedback(data: ManualFeedbackInput):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get(
+    "/recent",
+    summary="Get recent feedback",
+    description="Fetch recent raw feedback items from the database.",
+)
+async def get_recent_feedback_list(limit: int = 50):
+    try:
+        from backend.app.services.save_feedback import get_recent_feedbacks
+        items = await get_recent_feedbacks(limit)
+        return {"feedbacks": items}
+    except Exception as e:
+        logger.error(f"Failed to fetch recent feedback: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post(
     "/csv",
     response_model=BatchFeedbackResponse,

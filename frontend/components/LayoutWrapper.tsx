@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   Compass,
-  ArrowRight
+  ArrowRight,
+  Upload
 } from 'lucide-react';
 
 interface LayoutWrapperProps {
@@ -136,6 +137,16 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           {/* Navigation Items */}
           <nav className="flex-1 py-6 px-4 space-y-1.5">
             <Link
+              href="/upload"
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/upload'
+                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
+                }`}
+            >
+              <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
+              Upload Signals
+            </Link>
+            <Link
               href="/dashboard"
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/dashboard'
                 ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
@@ -197,6 +208,17 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
               </div>
 
               <nav className="flex-1 py-6 space-y-1.5">
+                <Link
+                  href="/upload"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/upload'
+                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
+                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
+                    }`}
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload Signals
+                </Link>
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}

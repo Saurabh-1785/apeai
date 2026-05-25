@@ -40,8 +40,35 @@ export const api = {
     });
   },
 
+  async ingestCSVFeedback(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const url = `${API_BASE}/feedback/csv`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errMsg = `Request failed with status ${response.status}`;
+      try {
+        const data = await response.json();
+        errMsg = data.detail || data.message || errMsg;
+      } catch {
+        // Ignored
+      }
+      throw new Error(errMsg);
+    }
+    return response.json();
+  },
+
   async getFeedbackStats(): Promise<any> {
     return request<any>('/feedback/stats');
+  },
+
+  async getRecentFeedbacks(limit: number = 50): Promise<any> {
+    return request<any>(`/feedback/recent?limit=${limit}`);
   },
 
   // --- CLUSTERING & PIPELINE (Layer 3) ---

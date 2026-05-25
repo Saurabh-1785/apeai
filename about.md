@@ -7,10 +7,8 @@ Each feedback source is its own independent module. Your backend exposes simple 
 
 **Sources and how to integrate them:**
 
-- **Manual upload / paste** — a simple text area or CSV uploader on your frontend that calls your FastAPI endpoint. Easiest starting point.
-- **Slack** — use the [Slack Bolt SDK for Python](https://slack.dev/bolt-python). It listens to events (messages in specific channels) and forwards them to your backend.
-- **Email** — use Mailgun or Postmark's inbound email feature. They give you a webhook URL — any email sent there gets forwarded as a JSON payload to your backend.
-- **GitHub Issues** — use GitHub Webhooks. When an issue is created/commented, GitHub sends a POST request to your backend.
+- **Manual upload / paste** — a simple text area on your frontend that calls your FastAPI endpoint. Easiest starting point.
+- **CSV batch upload** — an integrated CSV file parser and batch uploader in the frontend dashboard that allows teams to ingest lists or spreadsheets of raw customer feedback signals.
 
 Every source converts its data to the **same internal JSON format** before saving it. This is the key to keeping sources modular and swappable.
 

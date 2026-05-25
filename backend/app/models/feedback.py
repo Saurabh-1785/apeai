@@ -37,26 +37,7 @@ class CSVFeedbackRow(BaseModel):
     source: str = Field(default="csv")
 
 
-class GitHubWebhookHeaders(BaseModel):
-    """Expected headers from a GitHub webhook request."""
-    x_hub_signature_256: Optional[str] = None
-    x_github_event: Optional[str] = None
-    x_github_delivery: Optional[str] = None
 
-
-class PostmarkInboundEmail(BaseModel):
-    """Schema for Postmark inbound email webhook payload."""
-    From: str = Field(default="unknown", alias="From")
-    FromName: Optional[str] = None
-    Subject: str = Field(default="(no subject)")
-    TextBody: Optional[str] = None
-    HtmlBody: Optional[str] = None
-    MailboxHash: Optional[str] = None
-    Date: Optional[str] = None
-
-    model_config = {
-        "populate_by_name": True,
-    }
 
 
 # ─── Unified Internal Format ────────────────────────────────
@@ -73,7 +54,7 @@ class FeedbackItem(BaseModel):
     """
     source: str = Field(
         ...,
-        description="Origin of feedback: manual, csv, slack, github, email"
+        description="Origin of feedback: manual, csv"
     )
     author: str = Field(
         default="anonymous",
