@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [dob, setDob] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -51,8 +52,8 @@ export default function SignupPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      // Go to OTP verify page
-      router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
+      // Show success message telling them to check email for the verification link
+      setSuccess(true);
     }
   };
 
@@ -89,8 +90,18 @@ export default function SignupPage() {
           </div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSignup}>
-          <div className="space-y-4">
+        {success ? (
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 px-4 py-6 rounded-xl flex flex-col items-center gap-3 text-center animate-fade-in">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            <div>
+              <p className="font-bold text-lg">Check your email!</p>
+              <p className="text-sm opacity-80 mt-1">We've sent you a verification link. Please click it to activate your account.</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <form className="mt-8 space-y-6" onSubmit={handleSignup}>
+              <div className="space-y-4">
             <div>
               <label className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1 block">Email address</label>
               <div className="relative">
@@ -198,12 +209,14 @@ export default function SignupPage() {
           Google
         </button>
 
-        <p className="mt-8 text-center text-sm text-slate-500 dark:text-zinc-400 font-medium">
-          Already have an account?{' '}
-          <Link href="/login" className="text-slate-900 dark:text-white font-bold hover:underline">
-            Log in
-          </Link>
-        </p>
+            <p className="mt-8 text-center text-sm text-slate-500 dark:text-zinc-400 font-medium">
+              Already have an account?{' '}
+              <Link href="/login" className="text-slate-900 dark:text-white font-bold hover:underline">
+                Log in
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

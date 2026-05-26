@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 doc_router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
-@doc_router.post("/", response_model=DocumentResponse, summary="Create document")
+@doc_router.post("", response_model=DocumentResponse, summary="Create document")
 async def api_create_document(data: DocumentCreate):
     """Create a new AI-generated document linked to a cluster."""
     try:
@@ -90,7 +90,7 @@ async def api_create_document(data: DocumentCreate):
         raise HTTPException(status_code=503, detail=str(e))
 
 
-@doc_router.get("/", response_model=DocumentListResponse, summary="List documents")
+@doc_router.get("", response_model=DocumentListResponse, summary="List documents")
 async def api_list_documents(
     cluster_id: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
@@ -157,7 +157,7 @@ async def api_delete_document(document_id: str):
 approval_router = APIRouter(prefix="/approvals", tags=["Approvals (Review Gate)"])
 
 
-@approval_router.post("/", response_model=ApprovalResponse, summary="Submit review")
+@approval_router.post("", response_model=ApprovalResponse, summary="Submit review")
 async def api_create_approval(data: ApprovalCreate):
     """
     Submit a human review (approve or reject) for a document.
@@ -189,7 +189,7 @@ async def api_create_approval(data: ApprovalCreate):
         raise HTTPException(status_code=503, detail=str(e))
 
 
-@approval_router.get("/", response_model=ApprovalListResponse, summary="List approvals")
+@approval_router.get("", response_model=ApprovalListResponse, summary="List approvals")
 async def api_list_approvals(
     document_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
@@ -220,7 +220,7 @@ async def api_list_approvals(
 integration_router = APIRouter(prefix="/integrations", tags=["Integrations"])
 
 
-@integration_router.post("/", response_model=IntegrationResponse, summary="Create integration")
+@integration_router.post("", response_model=IntegrationResponse, summary="Create integration")
 async def api_create_integration(data: IntegrationCreate):
     """Configure a new external integration (Jira, GitHub, Linear, etc.)."""
     try:
@@ -237,7 +237,7 @@ async def api_create_integration(data: IntegrationCreate):
         raise HTTPException(status_code=503, detail=str(e))
 
 
-@integration_router.get("/", response_model=IntegrationListResponse, summary="List integrations")
+@integration_router.get("", response_model=IntegrationListResponse, summary="List integrations")
 async def api_list_integrations(
     type: Optional[str] = Query(None),
     active_only: bool = Query(True),
@@ -290,7 +290,7 @@ async def api_delete_integration(integration_id: str):
 ticket_router = APIRouter(prefix="/ticket-links", tags=["Ticket Links"])
 
 
-@ticket_router.post("/", response_model=TicketLinkResponse, summary="Create ticket link")
+@ticket_router.post("", response_model=TicketLinkResponse, summary="Create ticket link")
 async def api_create_ticket_link(data: TicketLinkCreate):
     """Record a link between a document and an external ticket."""
     try:
@@ -314,7 +314,7 @@ async def api_create_ticket_link(data: TicketLinkCreate):
         raise HTTPException(status_code=503, detail=str(e))
 
 
-@ticket_router.get("/", summary="List ticket links")
+@ticket_router.get("", summary="List ticket links")
 async def api_list_ticket_links(document_id: Optional[str] = Query(None)):
     """List ticket links, optionally filtered by document."""
     try:

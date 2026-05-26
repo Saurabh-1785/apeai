@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RecentFeedbacks } from '@/components/RecentFeedbacks';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/components/AuthContext';
 import { 
   Inbox, 
   Plus, 
@@ -29,6 +30,7 @@ import {
 
 export default function FeedbackInboxPage() {
   const { toast } = useToast();
+  const { session, loading: authLoading } = useAuth();
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [stats, setStats] = useState<{ total: number; by_source: Record<string, number> }>({ total: 0, by_source: {} });
   const [loading, setLoading] = useState(true);
@@ -40,28 +42,46 @@ export default function FeedbackInboxPage() {
   const fetchData = async () => {
     try {
       setError(null);
-      const [clusterRes, statsRes] = await Promise.all([
+      const [clusterResult, statsResult] = await Promise.allSettled([
         api.getClusters(),
         api.getFeedbackStats()
       ]);
-      setClusters(clusterRes.clusters || []);
-      setStats(statsRes || { total: 0, by_source: {} });
+      
+      if (clusterResult.status === 'fulfilled') {
+        setClusters(clusterResult.value.clusters || []);
+      } else {
+        console.error('Failed to fetch clusters:', clusterResult.reason);
+        setError(`Failed to fetch clusters: ${clusterResult.reason?.message || 'Unknown error'}`);
+      }
+      
+      if (statsResult.status === 'fulfilled') {
+        setStats(statsResult.value || { total: 0, by_source: {} });
+      } else {
+        console.error('Failed to fetch stats:', statsResult.reason);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch cluster and statistics records');
+      setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    // Only fetch data once auth session is resolved
+    if (!authLoading && session) {
+      fetchData();
+    } else if (!authLoading && !session) {
+      // Not authenticated — ProtectedRoute will handle redirect
+      setLoading(false);
+    }
+  }, [authLoading, session]);
 
   const handleRunClustering = async () => {
     setClustering(true);
     try {
       const res = await api.triggerClustering();
-      toast(`Clustering complete! Grouped ${res.processed || 0} feedback items.`, 'success');
+      const msg = res.message || `Clustering complete! ${res.new_clusters || 0} new clusters, ${res.linked || 0} linked.`;
+      toast(msg, 'success');
       fetchData();
     } catch (err: any) {
       toast(err.message || 'Failed to trigger clustering', 'error');

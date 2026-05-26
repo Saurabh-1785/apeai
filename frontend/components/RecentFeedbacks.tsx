@@ -2,9 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '@/services/api';
+import { useAuth } from '@/components/AuthContext';
 import { Loader2, Database, Code, LayoutList, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export function RecentFeedbacks() {
+  const { session, loading: authLoading } = useAuth();
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +26,12 @@ export function RecentFeedbacks() {
   };
 
   useEffect(() => {
-    fetchFeedbacks();
-  }, []);
+    if (!authLoading && session) {
+      fetchFeedbacks();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [authLoading, session]);
 
   return (
     <div className="space-y-6 animate-fade-in mt-12 border-t border-slate-200/60 dark:border-zinc-900/80 pt-8">

@@ -45,14 +45,15 @@ export default function CompleteProfilePage() {
 
     if (!user) return;
 
-    // Update the profile in the database
+    // Upsert the profile in the database
     const { error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: user.id,
+        email: user.email,
         dob: dob,
         full_name: fullName || null
-      })
-      .eq('id', user.id);
+      });
 
     if (error) {
       setError(error.message);

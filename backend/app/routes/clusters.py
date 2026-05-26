@@ -45,7 +45,7 @@ router = APIRouter(prefix="/clusters", tags=["Clusters"])
 
 
 @router.post(
-    "/",
+    "",
     response_model=ClusterResponse,
     summary="Create a new cluster",
 )
@@ -81,7 +81,7 @@ async def api_cluster_stats(user_id: str = Depends(get_current_user)):
 
 
 @router.get(
-    "/",
+    "",
     response_model=ClusterListResponse,
     summary="List clusters",
 )

@@ -6,13 +6,10 @@ import { Integration } from '@/types/models';
 import { useToast } from '@/components/ui/ToastProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { 
-  Settings, 
-  Github, 
   Plus, 
   Trash2, 
   Loader2, 
   AlertTriangle,
-  Link2,
   CheckCircle2
 } from 'lucide-react';
 
@@ -25,19 +22,11 @@ export default function IntegrationsPage() {
   // Form states
   const [submitting, setSubmitting] = useState<string | null>(null);
   
-  // GitHub Form
-  const [ghToken, setGhToken] = useState('');
-  const [ghRepo, setGhRepo] = useState('');
-
   // Jira Form
   const [jiraUrl, setJiraUrl] = useState('');
   const [jiraEmail, setJiraEmail] = useState('');
   const [jiraToken, setJiraToken] = useState('');
   const [jiraProject, setJiraProject] = useState('');
-
-  // Linear Form
-  const [linToken, setLinToken] = useState('');
-  const [linTeam, setLinTeam] = useState('');
 
   const loadIntegrations = async () => {
     try {
@@ -55,7 +44,7 @@ export default function IntegrationsPage() {
     loadIntegrations();
   }, []);
 
-  const handleConnect = async (type: 'github' | 'jira' | 'linear') => {
+  const handleConnect = async (type: 'jira') => {
     setSubmitting(type);
     try {
       let payload: Partial<Integration> = {
@@ -64,12 +53,7 @@ export default function IntegrationsPage() {
         is_active: true,
       };
 
-      if (type === 'github') {
-        if (!ghToken || !ghRepo) throw new Error('Token and Repository name are required.');
-        payload.api_key = ghToken;
-        payload.project_id = ghRepo;
-        payload.config = { dry_run: true }; // Enforce safe dry-run tests by default
-      } else if (type === 'jira') {
+      if (type === 'jira') {
         if (!jiraUrl || !jiraEmail || !jiraToken || !jiraProject) {
           throw new Error('All fields are required to bind Jira Cloud.');
         }
@@ -77,29 +61,16 @@ export default function IntegrationsPage() {
         payload.api_key = jiraToken;
         payload.project_id = jiraProject;
         payload.config = { email: jiraEmail, dry_run: true };
-      } else {
-        if (!linToken || !linTeam) throw new Error('Token and Team ID are required.');
-        payload.api_key = linToken;
-        payload.project_id = linTeam;
-        payload.config = { dry_run: true };
       }
 
       await api.createIntegration(payload);
       toast(`Successfully connected ${type.toUpperCase()}!`, 'success');
       
       // Clear forms
-      if (type === 'github') {
-        setGhToken('');
-        setGhRepo('');
-      } else if (type === 'jira') {
-        setJiraUrl('');
-        setJiraEmail('');
-        setJiraToken('');
-        setJiraProject('');
-      } else {
-        setLinToken('');
-        setLinTeam('');
-      }
+      setJiraUrl('');
+      setJiraEmail('');
+      setJiraToken('');
+      setJiraProject('');
 
       loadIntegrations();
     } catch (err: any) {
@@ -122,267 +93,127 @@ export default function IntegrationsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-slate-900 dark:text-zinc-300 animate-spin" />
-        <p className="text-sm font-semibold text-slate-500">Loading integrations settings...</p>
+        <p className="text-xs font-bold tracking-widest text-slate-400 dark:text-zinc-500 uppercase">Loading Integrations...</p>
       </div>
     );
   }
 
-  const activeGitHub = integrations.find((i) => i.type === 'github');
   const activeJira = integrations.find((i) => i.type === 'jira');
-  const activeLinear = integrations.find((i) => i.type === 'linear');
 
   return (
     <ProtectedRoute>
-      <div className="space-y-8 animate-fade-in max-w-5xl mx-auto pb-16">
+      <div className="space-y-8 animate-fade-in max-w-xl mx-auto pb-16">
         {/* Title */}
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Integration Settings</h2>
-          <p className="text-sm text-slate-500">Connect third-party issue trackers. API keys are encrypted and stored backend-side.</p>
+        <div className="text-center sm:text-left">
+          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Integration Settings</h2>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 font-semibold">
+            Connect Jira issue trackers. API credentials are fully encrypted and stored backend-side.
+          </p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-500" />
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 px-4 py-3.5 rounded-2xl flex items-center gap-3 animate-slide-up">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-500 dark:text-red-400" />
             <p className="text-sm font-medium">{error}</p>
           </div>
         )}
 
-        {/* Grid Layout of Platforms */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* 1. GitHub card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-900 text-white p-2 rounded-lg">
-                  <Github className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">GitHub Issues</h4>
-                  <p className="text-xs text-slate-400">Publish stories as issues.</p>
-                </div>
+        {/* Platforms */}
+        <div className="bg-white dark:bg-[#0c0c0e] border border-slate-200 dark:border-zinc-800 shadow-2xl shadow-slate-900/5 dark:shadow-black/20 p-8 rounded-3xl transition-colors duration-300">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-zinc-900">
+              <div className="bg-blue-600 text-white p-2.5 rounded-2xl font-black text-sm leading-none flex items-center justify-center w-10 h-10 shadow-md shadow-blue-500/10">
+                JR
               </div>
-
-              {activeGitHub ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Connected Pipeline
-                  </div>
-                  <div className="text-xs text-slate-600 space-y-1">
-                    <p><strong>Repo:</strong> {activeGitHub.project_id}</p>
-                    <p><strong>Status:</strong> Dry-run mode enabled</p>
-                  </div>
-                  <button
-                    onClick={() => handleDisconnect(activeGitHub.id, activeGitHub.name)}
-                    className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-bold mt-2"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Disconnect Pipeline
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">GitHub PAT Token</label>
-                    <input
-                      type="password"
-                      value={ghToken}
-                      onChange={(e) => setGhToken(e.target.value)}
-                      placeholder="ghp_..."
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Repository Path</label>
-                    <input
-                      type="text"
-                      value={ghRepo}
-                      onChange={(e) => setGhRepo(e.target.value)}
-                      placeholder="e.g. owner/repo"
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleConnect('github')}
-                    disabled={submitting !== null || !ghToken || !ghRepo}
-                    className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
-                  >
-                    {submitting === 'github' ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="w-3.5 h-3.5" />
-                    )}
-                    Connect GitHub
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 2. Jira card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-900 text-white p-2 rounded-lg font-bold text-sm leading-none flex items-center justify-center w-9 h-9">
-                  JR
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Jira Cloud</h4>
-                  <p className="text-xs text-slate-400">Publish stories as Jira tasks.</p>
-                </div>
+              <div>
+                <h4 className="font-extrabold text-slate-800 dark:text-zinc-100 text-base">Jira Cloud</h4>
+                <p className="text-xs text-slate-400 dark:text-zinc-500 font-semibold">Publish stories and tickets directly into Jira tasks.</p>
               </div>
-
-              {activeJira ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Connected Pipeline
-                  </div>
-                  <div className="text-xs text-slate-600 space-y-1">
-                    <p><strong>Host:</strong> {activeJira.api_url}</p>
-                    <p><strong>Project Key:</strong> {activeJira.project_id}</p>
-                  </div>
-                  <button
-                    onClick={() => handleDisconnect(activeJira.id, activeJira.name)}
-                    className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-bold mt-2"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Disconnect Pipeline
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jira Instance URL</label>
-                    <input
-                      type="text"
-                      value={jiraUrl}
-                      onChange={(e) => setJiraUrl(e.target.value)}
-                      placeholder="https://company.atlassian.net"
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jira User Email</label>
-                    <input
-                      type="email"
-                      value={jiraEmail}
-                      onChange={(e) => setJiraEmail(e.target.value)}
-                      placeholder="name@company.com"
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jira API Token</label>
-                    <input
-                      type="password"
-                      value={jiraToken}
-                      onChange={(e) => setJiraToken(e.target.value)}
-                      placeholder="API Token secret"
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project Key</label>
-                    <input
-                      type="text"
-                      value={jiraProject}
-                      onChange={(e) => setJiraProject(e.target.value)}
-                      placeholder="e.g. PROJ"
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleConnect('jira')}
-                    disabled={submitting !== null || !jiraUrl || !jiraEmail || !jiraToken || !jiraProject}
-                    className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
-                  >
-                    {submitting === 'jira' ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-300" />
-                    ) : (
-                      <Plus className="w-3.5 h-3.5" />
-                    )}
-                    Connect Jira
-                  </button>
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* 3. Linear card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-900 text-white p-2 rounded-lg font-bold text-sm leading-none flex items-center justify-center w-9 h-9">
-                  LN
+            {activeJira ? (
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-6 space-y-4 animate-fade-in">
+                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                  Connected Pipeline
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Linear Workspace</h4>
-                  <p className="text-xs text-slate-400">Publish stories as Linear tickets.</p>
+                <div className="text-xs text-slate-600 dark:text-zinc-300 space-y-2 font-semibold bg-white/50 dark:bg-black/25 p-4 rounded-xl border border-emerald-500/10">
+                  <p className="flex justify-between"><span className="text-slate-400 dark:text-zinc-500">Host URL:</span> <span className="font-extrabold">{activeJira.api_url}</span></p>
+                  <p className="flex justify-between"><span className="text-slate-400 dark:text-zinc-500">Project Key:</span> <span className="font-extrabold text-blue-600 dark:text-blue-400">{activeJira.project_id}</span></p>
                 </div>
+                
+                <button
+                  onClick={() => handleDisconnect(activeJira.id, activeJira.name)}
+                  className="w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold py-3 rounded-xl transition-all active:scale-[0.98]"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Disconnect Pipeline</span>
+                </button>
               </div>
-
-              {activeLinear ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Connected Pipeline
-                  </div>
-                  <div className="text-xs text-slate-600 space-y-1">
-                    <p><strong>Team ID:</strong> {activeLinear.project_id}</p>
-                    <p><strong>Status:</strong> Dry-run mode enabled</p>
-                  </div>
-                  <button
-                    onClick={() => handleDisconnect(activeLinear.id, activeLinear.name)}
-                    className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-bold mt-2"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Disconnect Pipeline
-                  </button>
+            ) : (
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Jira Instance URL</label>
+                  <input
+                    type="text"
+                    value={jiraUrl}
+                    onChange={(e) => setJiraUrl(e.target.value)}
+                    placeholder="https://company.atlassian.net"
+                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
+                  />
                 </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Linear API Key</label>
-                    <input
-                      type="password"
-                      value={linToken}
-                      onChange={(e) => setLinToken(e.target.value)}
-                      placeholder="lin_api_..."
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Team ID (UUID)</label>
-                    <input
-                      type="text"
-                      value={linTeam}
-                      onChange={(e) => setLinTeam(e.target.value)}
-                      placeholder="Linear Team UUID"
-                      className="w-full text-xs border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleConnect('linear')}
-                    disabled={submitting !== null || !linToken || !linTeam}
-                    className="w-full flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded disabled:opacity-50 transition-colors"
-                  >
-                    {submitting === 'linear' ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="w-3.5 h-3.5" />
-                    )}
-                    Connect Linear
-                  </button>
+                
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Jira User Email</label>
+                  <input
+                    type="email"
+                    value={jiraEmail}
+                    onChange={(e) => setJiraEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
+                  />
                 </div>
-              )}
-            </div>
+                
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Jira API Token</label>
+                  <input
+                    type="password"
+                    value={jiraToken}
+                    onChange={(e) => setJiraToken(e.target.value)}
+                    placeholder="Enter API Token secret"
+                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Project Key</label>
+                  <input
+                    type="text"
+                    value={jiraProject}
+                    onChange={(e) => setJiraProject(e.target.value)}
+                    placeholder="e.g. PROJ"
+                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
+                  />
+                </div>
+                
+                <button
+                  onClick={() => handleConnect('jira')}
+                  disabled={submitting !== null || !jiraUrl || !jiraEmail || !jiraToken || !jiraProject}
+                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-extrabold py-3.5 rounded-xl disabled:opacity-50 transition-all duration-300 shadow-md active:scale-[0.98]"
+                >
+                  {submitting === 'jira' ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-zinc-300 dark:text-zinc-700" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>Connect Jira Cloud</span>
+                </button>
+              </div>
+            )}
           </div>
-
         </div>
       </div>
     </ProtectedRoute>

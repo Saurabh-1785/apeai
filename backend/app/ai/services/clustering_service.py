@@ -35,15 +35,26 @@ async def classify_feedback(content: str) -> str:
         return "feature_request"
     return "default"
 
-async def cluster_unprocessed_feedback() -> Dict[str, Any]:
+async def cluster_unprocessed_feedback(user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Finds all feedback items not yet in a cluster and groups them.
+    
+    Step 1: Generate embeddings for any feedback that doesn't have one yet.
+    Step 2: Use vector similarity to group feedback into clusters.
     """
     db = get_supabase_client()
     
-    # 1. Get all feedback IDs that have embeddings but NO cluster link
-    # This requires a slightly complex query or a join
-    # For simplicity, we'll fetch feedback and check cluster_feedback table
+    # 1. First, ensure ALL feedback items have embeddings
+    from backend.app.services.embedding_service import create_embeddings_batch
+    
+    try:
+        embed_result = await create_embeddings_batch()
+        logger.info(f"📊 Embedding batch result: {embed_result}")
+    except Exception as e:
+        logger.error(f"Failed to create embeddings batch: {e}")
+        # Continue anyway — some embeddings may already exist
+    
+    # 2. Get all feedback IDs that have embeddings but NO cluster link
     feedback_res = db.table("feedback").select("id, content").execute()
     links_res = db.table("cluster_feedback").select("feedback_id").execute()
     
@@ -51,9 +62,18 @@ async def cluster_unprocessed_feedback() -> Dict[str, Any]:
     unprocessed = [f for f in (feedback_res.data or []) if f["id"] not in linked_ids]
     
     if not unprocessed:
-        return {"processed": 0, "new_clusters": 0, "linked": 0}
+        return {"processed": 0, "new_clusters": 0, "linked": 0, "message": "All feedback is already clustered."}
 
     logger.info(f"🔄 Processing {len(unprocessed)} unclustered feedback items")
+    
+    # 3. Check if we have ANY embeddings at all
+    embedding_check = db.table("embeddings").select("feedback_id", count="exact").execute()
+    embedding_count = embedding_check.count if embedding_check.count is not None else len(embedding_check.data or [])
+    
+    if embedding_count == 0:
+        logger.warning("⚠️ No embeddings exist yet — cannot do similarity matching. Creating standalone clusters.")
+        # Fall back: create one cluster per feedback type
+        return await _create_fallback_clusters(unprocessed, user_id=user_id)
     
     new_clusters = 0
     linked = 0
@@ -66,8 +86,7 @@ async def cluster_unprocessed_feedback() -> Dict[str, Any]:
         fb_type = await classify_feedback(content)
         threshold = THRESHOLDS.get(fb_type, THRESHOLDS["default"])
         
-        # 2. Search for similar feedback that is ALREADY in a cluster
-        # We use the match_feedback RPC we created in Layer 2
+        # Search for similar feedback that is ALREADY in a cluster
         from backend.app.services.embedding_service import generate_embedding
         
         try:
@@ -84,27 +103,29 @@ async def cluster_unprocessed_feedback() -> Dict[str, Any]:
             cluster_id = None
             if matches.data:
                 # Check if any match belongs to a cluster
-                match_ids = [m["feedback_id"] for m in matches.data]
-                existing_links = db.table("cluster_feedback") \
-                    .select("cluster_id") \
-                    .in_("feedback_id", match_ids) \
-                    .limit(1) \
-                    .execute()
-                
-                if existing_links.data:
-                    cluster_id = existing_links.data[0]["cluster_id"]
+                match_ids = [m["feedback_id"] for m in matches.data if m["feedback_id"] != fid]
+                if match_ids:
+                    existing_links = db.table("cluster_feedback") \
+                        .select("cluster_id") \
+                        .in_("feedback_id", match_ids) \
+                        .limit(1) \
+                        .execute()
+                    
+                    if existing_links.data:
+                        cluster_id = existing_links.data[0]["cluster_id"]
             
             if cluster_id:
                 # Link to existing cluster
-                await add_feedback_to_cluster(cluster_id, [fid], [matches.data[0]["similarity"]])
+                sim_score = matches.data[0]["similarity"] if matches.data else 0.8
+                await add_feedback_to_cluster(cluster_id, [fid], [sim_score])
                 linked += 1
             else:
                 # Create new cluster
-                # We'll use a placeholder title, which will be updated by summarization service
                 await create_cluster(
                     title=f"New {fb_type.replace('_', ' ').title()} Cluster",
                     feedback_ids=[fid],
-                    confidence_score=100.0
+                    confidence_score=100.0,
+                    user_id=user_id
                 )
                 new_clusters += 1
                 
@@ -115,5 +136,36 @@ async def cluster_unprocessed_feedback() -> Dict[str, Any]:
     return {
         "processed": len(unprocessed),
         "new_clusters": new_clusters,
-        "linked": linked
+        "linked": linked,
+        "message": f"Processed {len(unprocessed)} items: {new_clusters} new clusters, {linked} linked to existing."
     }
+
+
+async def _create_fallback_clusters(unprocessed: list, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Fallback clustering when no embeddings exist.
+    Groups feedback by type (bug, feature_request, etc.) and creates one cluster per type.
+    """
+    groups: Dict[str, list] = {}
+    for item in unprocessed:
+        fb_type = await classify_feedback(item["content"])
+        groups.setdefault(fb_type, []).append(item["id"])
+    
+    new_clusters = 0
+    for fb_type, fids in groups.items():
+        await create_cluster(
+            title=f"{fb_type.replace('_', ' ').title()} Feedback Group",
+            summary=f"Auto-grouped {len(fids)} {fb_type} feedback items (fallback clustering — no embeddings available yet).",
+            feedback_ids=fids,
+            confidence_score=50.0,
+            user_id=user_id,
+        )
+        new_clusters += 1
+    
+    return {
+        "processed": len(unprocessed),
+        "new_clusters": new_clusters,
+        "linked": 0,
+        "message": f"Created {new_clusters} clusters using keyword-based fallback grouping ({len(unprocessed)} total items)."
+    }
+

@@ -13,8 +13,9 @@ Endpoints for triggering AI pipeline stages:
 import logging
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
+from backend.app.core.auth import get_current_user
 from backend.app.ai.services.clustering_service import cluster_unprocessed_feedback
 from backend.app.ai.services.generation_service import (
     summarize_cluster,
@@ -29,10 +30,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/pipeline", tags=["AI Pipeline Orchestration"])
 
 @router.post("/cluster", summary="Cluster all unprocessed feedback")
-async def api_cluster_feedback():
+async def api_cluster_feedback(user_id: str = Depends(get_current_user)):
     """Triggers the iterative clustering logic for all un-clustered feedback."""
     try:
-        return await cluster_unprocessed_feedback()
+        return await cluster_unprocessed_feedback(user_id=user_id)
     except Exception as e:
         logger.error(f"Clustering failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

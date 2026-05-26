@@ -1,15 +1,29 @@
 import { Cluster, Document, Integration, IngestedFeedback } from '../types/models';
+import { supabase } from '../lib/supabase';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+async function getAuthToken() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
+  const token = await getAuthToken();
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options?.headers || {}),
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -44,10 +58,17 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
     
+    const token = await getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const url = `${API_BASE}/feedback/csv`;
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
+      headers,
     });
 
     if (!response.ok) {
@@ -73,7 +94,7 @@ export const api = {
 
   // --- CLUSTERING & PIPELINE (Layer 3) ---
   async getClusters(): Promise<{ clusters: Cluster[] }> {
-    return request<{ clusters: Cluster[] }>('/clusters/');
+    return request<{ clusters: Cluster[] }>('/clusters');
   },
 
   async triggerClustering(): Promise<any> {
@@ -109,7 +130,7 @@ export const api = {
     const params = new URLSearchParams();
     if (clusterId) params.append('cluster_id', clusterId);
     if (type) params.append('type', type);
-    return request<{ documents: Document[] }>(`/documents/?${params.toString()}`);
+    return request<{ documents: Document[] }>(`/documents?${params.toString()}`);
   },
 
   async getDocument(documentId: string): Promise<Document> {
@@ -125,7 +146,7 @@ export const api = {
 
   async approveDocument(documentId: string, approvedBy: string = 'Human Admin'): Promise<any> {
     // Creates an approval entry
-    return request<any>('/approvals/', {
+    return request<any>('/approvals', {
       method: 'POST',
       body: JSON.stringify({
         document_id: documentId,
@@ -138,11 +159,11 @@ export const api = {
 
   // --- INTEGRATIONS & PUBLISHING (Layer 4) ---
   async getIntegrations(): Promise<{ integrations: Integration[] }> {
-    return request<{ integrations: Integration[] }>('/integrations/');
+    return request<{ integrations: Integration[] }>('/integrations');
   },
 
   async createIntegration(payload: Partial<Integration>): Promise<Integration> {
-    return request<Integration>('/integrations/', {
+    return request<Integration>('/integrations', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
