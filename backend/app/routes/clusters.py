@@ -16,8 +16,10 @@ Endpoints:
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, List
+
+from backend.app.core.auth import get_current_user
 
 from backend.app.models.storage import (
     ClusterCreate,
@@ -47,7 +49,7 @@ router = APIRouter(prefix="/clusters", tags=["Clusters"])
     response_model=ClusterResponse,
     summary="Create a new cluster",
 )
-async def api_create_cluster(data: ClusterCreate):
+async def api_create_cluster(data: ClusterCreate, user_id: str = Depends(get_current_user)):
     """
     Create a new feedback cluster.
     
@@ -59,6 +61,7 @@ async def api_create_cluster(data: ClusterCreate):
             summary=data.summary,
             feedback_ids=data.feedback_ids,
             confidence_score=data.confidence_score,
+            user_id=user_id,
         )
         return _cluster_to_response(cluster)
     except RuntimeError as e:
@@ -69,10 +72,10 @@ async def api_create_cluster(data: ClusterCreate):
     "/stats",
     summary="Cluster statistics",
 )
-async def api_cluster_stats():
+async def api_cluster_stats(user_id: str = Depends(get_current_user)):
     """Get cluster count and breakdown by pipeline status."""
     try:
-        return await get_cluster_stats()
+        return await get_cluster_stats(user_id=user_id)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
@@ -86,10 +89,11 @@ async def api_list_clusters(
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    user_id: str = Depends(get_current_user),
 ):
     """List all clusters with optional status filter and pagination."""
     try:
-        result = await list_clusters(status=status, limit=limit, offset=offset)
+        result = await list_clusters(status=status, user_id=user_id, limit=limit, offset=offset)
         return ClusterListResponse(
             clusters=[_cluster_to_response(c) for c in result["clusters"]],
             total=result["total"],

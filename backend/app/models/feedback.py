@@ -52,6 +52,10 @@ class FeedbackItem(BaseModel):
     This is what makes the system modular — downstream layers
     only ever see FeedbackItem, never source-specific formats.
     """
+    user_id: Optional[str] = Field(
+        default=None,
+        description="The Supabase user UUID that owns this feedback"
+    )
     source: str = Field(
         ...,
         description="Origin of feedback: manual, csv"
@@ -76,13 +80,16 @@ class FeedbackItem(BaseModel):
 
     def to_db_dict(self) -> Dict[str, Any]:
         """Convert to a dictionary suitable for Supabase insert."""
-        return {
+        data = {
             "source": self.source,
             "author": self.author,
             "content": self.content,
             "timestamp": self.timestamp.isoformat(),
             "metadata": self.metadata,
         }
+        if self.user_id:
+            data["user_id"] = self.user_id
+        return data
 
 
 # ─── Response Schemas ────────────────────────────────────────

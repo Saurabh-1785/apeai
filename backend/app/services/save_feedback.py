@@ -85,17 +85,21 @@ async def save_feedback_batch(items: List[FeedbackItem]) -> List[Dict[str, Any]]
         raise RuntimeError(f"Batch save failed: {e}")
 
 
-async def get_feedback_stats() -> Dict[str, Any]:
+async def get_feedback_stats(user_id: str = None) -> Dict[str, Any]:
     """
     Get feedback count statistics grouped by source.
     
-    Returns:
-        Dict with total count and per-source breakdown.
+    Args:
+        user_id: Optional user_id to filter stats by user.
     """
     client = get_supabase_client()
 
     try:
-        response = client.table("feedback").select("source").execute()
+        query = client.table("feedback").select("source")
+        if user_id:
+            query = query.eq("user_id", user_id)
+            
+        response = query.execute()
 
         if not response.data:
             return {"total": 0, "by_source": {}}
@@ -116,20 +120,22 @@ async def get_feedback_stats() -> Dict[str, Any]:
         return {"total": 0, "by_source": {}, "error": str(e)}
 
 
-async def get_recent_feedbacks(limit: int = 50) -> List[Dict[str, Any]]:
+async def get_recent_feedbacks(user_id: str = None, limit: int = 50) -> List[Dict[str, Any]]:
     """
     Get recent raw feedback from the database.
     
     Args:
+        user_id: Optional user_id to filter feedbacks by user.
         limit: Number of items to fetch.
-        
-    Returns:
-        List of recent feedback items.
     """
     client = get_supabase_client()
 
     try:
-        response = client.table("feedback").select("*").order("created_at", desc=True).limit(limit).execute()
+        query = client.table("feedback").select("*")
+        if user_id:
+            query = query.eq("user_id", user_id)
+            
+        response = query.order("created_at", desc=True).limit(limit).execute()
 
         if response.data:
             return response.data

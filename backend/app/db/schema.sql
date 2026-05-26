@@ -13,12 +13,49 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- ─── Table 0: profiles ──────────────────────────────────────
+-- Extended user information. Links 1:1 with Supabase auth.users.
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    user_id TEXT,
+    full_name TEXT,
+    dob DATE,
+    about_description TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Function to handle new user signup from Supabase Auth
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, avatar_url)
+  VALUES (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger for new user signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ─── Storage Bucket: avatars ────────────────────────────────
+-- Create a public bucket for user profile photos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
 -- ─── Table 1: feedback ──────────────────────────────────────
 -- Raw normalized feedback from all sources (Layer 1).
 -- Already in use from Layer 1 ingestion.
 
 CREATE TABLE IF NOT EXISTS feedback (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     source TEXT NOT NULL,
     author TEXT NOT NULL DEFAULT 'anonymous',
     content TEXT NOT NULL,
@@ -64,6 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_feedback_id ON embeddings(feedback_id)
 
 CREATE TABLE IF NOT EXISTS clusters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT,
     summary TEXT,
     feedback_count INT DEFAULT 0,
@@ -110,6 +148,7 @@ CREATE INDEX IF NOT EXISTS idx_cf_feedback ON cluster_feedback(feedback_id);
 
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
     type TEXT NOT NULL
         CHECK (type IN ('brd', 'prd', 'epic', 'story', 'task', 'sprint_plan')),
@@ -155,6 +194,7 @@ CREATE INDEX IF NOT EXISTS idx_approvals_approved ON approvals(approved);
 
 CREATE TABLE IF NOT EXISTS integrations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     type TEXT NOT NULL
         CHECK (type IN ('jira', 'github', 'linear', 'notion')),
     name TEXT NOT NULL,
@@ -200,6 +240,10 @@ END;
 $$ language 'plpgsql';
 
 -- Apply to tables with updated_at
+CREATE OR REPLACE TRIGGER update_profiles_updated_at
+    BEFORE UPDATE ON profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE OR REPLACE TRIGGER update_clusters_updated_at
     BEFORE UPDATE ON clusters
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

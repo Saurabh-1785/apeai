@@ -163,7 +163,7 @@ export default function EnterpriseLandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <Link
-              href="/dashboard"
+              href="/login"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black text-sm font-bold px-8 py-4 rounded-full transition-all duration-200"
             >
               Start Free Workspace

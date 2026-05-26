@@ -7,6 +7,7 @@ import { Cluster } from '@/types/models';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RecentFeedbacks } from '@/components/RecentFeedbacks';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { 
   Inbox, 
   Plus, 
@@ -82,7 +83,8 @@ export default function FeedbackInboxPage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <ProtectedRoute>
+      <div className="space-y-8 animate-fade-in">
       
       {/* Page Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200/60 dark:border-zinc-900/80">
@@ -273,5 +275,6 @@ export default function FeedbackInboxPage() {
       {/* Recent Feedbacks List */}
       <RecentFeedbacks />
     </div>
+    </ProtectedRoute>
   );
 }

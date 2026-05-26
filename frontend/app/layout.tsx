@@ -2,6 +2,8 @@ import './globals.css';
 import React from 'react';
 import { Inter } from 'next/font/google';
 import LayoutWrapper from '@/components/LayoutWrapper';
+import { ToastProvider } from '@/components/ui/ToastProvider';
+import { AuthProvider } from '@/components/AuthContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,9 +20,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <body className={`bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 antialiased transition-colors duration-300 ${inter.className}`}>
-        <LayoutWrapper>
-          {children}
-        </LayoutWrapper>
+        <AuthProvider>
+          <LayoutWrapper>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </LayoutWrapper>
+        </AuthProvider>
       </body>
     </html>
   );

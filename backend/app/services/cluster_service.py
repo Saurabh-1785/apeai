@@ -21,6 +21,7 @@ async def create_cluster(
     summary: Optional[str] = None,
     feedback_ids: Optional[List[str]] = None,
     confidence_score: float = 0.0,
+    user_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new feedback cluster.
@@ -44,6 +45,8 @@ async def create_cluster(
         "feedback_count": len(feedback_ids) if feedback_ids else 0,
         "status": "new",
     }
+    if user_id:
+        cluster_data["user_id"] = user_id
 
     result = db.table("clusters").insert(cluster_data).execute()
 
@@ -119,6 +122,7 @@ async def get_cluster(cluster_id: str, include_feedback: bool = True) -> Dict[st
 
 async def list_clusters(
     status: Optional[str] = None,
+    user_id: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
 ) -> Dict[str, Any]:
@@ -127,6 +131,7 @@ async def list_clusters(
     
     Args:
         status: Filter by pipeline status (e.g., 'new', 'approved').
+        user_id: Filter by owner.
         limit: Number of clusters to return.
         offset: Pagination offset.
         
@@ -142,6 +147,9 @@ async def list_clusters(
 
     if status:
         query = query.eq("status", status)
+        
+    if user_id:
+        query = query.eq("user_id", user_id)
 
     result = query.execute()
 
@@ -279,12 +287,16 @@ async def remove_feedback_from_cluster(
     return {"removed": len(feedback_ids), "total_in_cluster": new_count}
 
 
-async def get_cluster_stats() -> Dict[str, Any]:
+async def get_cluster_stats(user_id: Optional[str] = None) -> Dict[str, Any]:
     """Get cluster statistics grouped by status."""
     db = get_supabase_client()
 
     try:
-        result = db.table("clusters").select("status").execute()
+        query = db.table("clusters").select("status")
+        if user_id:
+            query = query.eq("user_id", user_id)
+            
+        result = query.execute()
 
         by_status: Dict[str, int] = {}
         for row in (result.data or []):

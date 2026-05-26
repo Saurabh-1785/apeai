@@ -11,7 +11,9 @@ import io
 import logging
 from typing import List
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+
+from backend.app.core.auth import get_current_user
 
 from backend.app.models.feedback import (
     ManualFeedbackInput,
@@ -32,7 +34,7 @@ router = APIRouter(prefix="/feedback", tags=["Manual Ingestion"])
     summary="Submit manual text feedback",
     description="Accepts a text feedback submission and saves it to the database.",
 )
-async def upload_manual_feedback(data: ManualFeedbackInput):
+async def upload_manual_feedback(data: ManualFeedbackInput, user_id: str = Depends(get_current_user)):
     """
     Receive manual text feedback from the frontend.
     
@@ -42,6 +44,7 @@ async def upload_manual_feedback(data: ManualFeedbackInput):
     try:
         # Step 1: Normalize to unified format
         feedback_item = normalize_manual(data)
+        feedback_item.user_id = user_id
 
         # Step 2: Save to database
         saved = await save_feedback(feedback_item)
@@ -69,10 +72,10 @@ async def upload_manual_feedback(data: ManualFeedbackInput):
     summary="Get recent feedback",
     description="Fetch recent raw feedback items from the database.",
 )
-async def get_recent_feedback_list(limit: int = 50):
+async def get_recent_feedback_list(limit: int = 50, user_id: str = Depends(get_current_user)):
     try:
         from backend.app.services.save_feedback import get_recent_feedbacks
-        items = await get_recent_feedbacks(limit)
+        items = await get_recent_feedbacks(user_id=user_id, limit=limit)
         return {"feedbacks": items}
     except Exception as e:
         logger.error(f"Failed to fetch recent feedback: {e}")
@@ -89,7 +92,7 @@ async def get_recent_feedback_list(limit: int = 50):
         "Any extra columns are stored in metadata."
     ),
 )
-async def upload_csv_feedback(file: UploadFile = File(...)):
+async def upload_csv_feedback(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
     """
     Upload a CSV file containing multiple feedback items.
     
@@ -135,6 +138,7 @@ async def upload_csv_feedback(file: UploadFile = File(...)):
         for row_number, row in enumerate(reader, start=1):
             try:
                 item = normalize_csv_row(dict(row), row_number)
+                item.user_id = user_id
                 feedback_items.append(item)
             except ValueError as e:
                 errors.append({"row": row_number, "error": str(e)})
