@@ -155,9 +155,7 @@ app.include_router(ticket_router)
 app.include_router(pipeline_router)
 
 # ─── Mount Layer 4 Routes (Integrations/Publishing) ────────
-app.include_router(github_publish_router)
 app.include_router(jira_publish_router)
-app.include_router(linear_publish_router)
 
 
 # ─── Core Endpoints ───────────────────────────────────────

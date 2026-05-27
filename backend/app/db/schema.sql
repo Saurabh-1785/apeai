@@ -188,7 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_approvals_document ON approvals(document_id);
 CREATE INDEX IF NOT EXISTS idx_approvals_approved ON approvals(approved);
 
 -- ─── Table 7: integrations ──────────────────────────────────
--- Stores API credentials for external tools (Jira, GitHub, Linear).
+-- Stores API credentials for external tools (Jira).
 -- Each row is one configured integration. Users can have multiple
 -- integrations of the same type (e.g., two Jira projects).
 
@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS integrations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     type TEXT NOT NULL
-        CHECK (type IN ('jira', 'github', 'linear', 'notion')),
+        CHECK (type IN ('jira')),
     name TEXT NOT NULL,
     api_key TEXT NOT NULL,
     api_url TEXT,
