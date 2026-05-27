@@ -41,13 +41,13 @@ echo ""
 echo ""
 
 # Test 6: List clusters (empty)
-echo "--- Test 6: GET /clusters/ ---"
-curl -s "$BASE_URL/clusters/" | python3 -m json.tool
+echo "--- Test 6: GET /clusters ---"
+curl -s "$BASE_URL/clusters" | python3 -m json.tool
 echo ""
 
 # Test 7: Create cluster (should fail — no Supabase)
-echo "--- Test 7: POST /clusters/ (expects 503 — needs Supabase) ---"
-curl -s -X POST "$BASE_URL/clusters/" \
+echo "--- Test 7: POST /clusters (expects 503 — needs Supabase) ---"
+curl -s -X POST "$BASE_URL/clusters" \
   -H "Content-Type: application/json" \
   -d '{"title": "Dashboard Performance Issues", "summary": "Users report slow dashboard"}'
 echo ""
@@ -59,23 +59,23 @@ curl -s "$BASE_URL/clusters/stats" | python3 -m json.tool
 echo ""
 
 # Test 9: List documents (empty)
-echo "--- Test 9: GET /documents/ ---"
-curl -s "$BASE_URL/documents/" | python3 -m json.tool
+echo "--- Test 9: GET /documents ---"
+curl -s "$BASE_URL/documents" | python3 -m json.tool
 echo ""
 
 # Test 10: List approvals (empty)
-echo "--- Test 10: GET /approvals/ ---"
-curl -s "$BASE_URL/approvals/" | python3 -m json.tool
+echo "--- Test 10: GET /approvals ---"
+curl -s "$BASE_URL/approvals" | python3 -m json.tool
 echo ""
 
 # Test 11: List integrations (empty)
-echo "--- Test 11: GET /integrations/ ---"
-curl -s "$BASE_URL/integrations/" | python3 -m json.tool
+echo "--- Test 11: GET /integrations ---"
+curl -s "$BASE_URL/integrations" | python3 -m json.tool
 echo ""
 
 # Test 12: List ticket links (empty)
-echo "--- Test 12: GET /ticket-links/ ---"
-curl -s "$BASE_URL/ticket-links/" | python3 -m json.tool
+echo "--- Test 12: GET /ticket-links ---"
+curl -s "$BASE_URL/ticket-links" | python3 -m json.tool
 echo ""
 
 # Test 13: Pipeline status

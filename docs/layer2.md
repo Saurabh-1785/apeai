@@ -869,8 +869,10 @@ Each entity is its own `APIRouter` with a dedicated `prefix` and `tags`, all mou
 │           ├── cluster_service.py     ← Cluster CRUD + feedback linking + stats
 │           └── document_service.py    ← Document CRUD + approval flow + integration config + ticket links + pipeline status
 │
-├── test_layer2.sh                     ← Shell script testing all Layer 2 HTTP endpoints
-└── verify_integration.sh              ← End-to-end test: ingest → embed → cluster → status check
+├── tests/
+│   ├── test_layer2.sh                 ← Shell script testing all Layer 2 HTTP endpoints
+│   └── verify_integration.sh          ← End-to-end test: ingest → embed → cluster → status check
+└── .env                               ← Environment configuration file
 ```
 
 ### File Responsibilities Summary

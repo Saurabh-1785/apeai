@@ -449,7 +449,8 @@ The `about.md` file originally referenced OpenAI's `text-embedding-3-small` and 
 │           ├── schema.sql             ← feedback table definition (Layer 1's output schema)
 │           └── supabase_client.py     ← Supabase connection singleton
 │
-├── test_endpoints.sh                  ← Shell script to test all Layer 1 HTTP endpoints
+├── tests/
+│   └── test_endpoints.sh              ← Shell script to test all Layer 1 HTTP endpoints
 │
 └── .env                               ← SUPABASE_URL, SUPABASE_KEY, SLACK_BOT_TOKEN, etc.
 ```
@@ -465,7 +466,7 @@ The `about.md` file originally referenced OpenAI's `text-embedding-3-small` and 
 | [`services/normalize.py`](file:///home/Saurabh/apeai/backend/app/services/normalize.py) | All normalize functions — the core of Layer 1 |
 | [`services/save_feedback.py`](file:///home/Saurabh/apeai/backend/app/services/save_feedback.py) | Supabase insert for single and batch feedback |
 | [`db/schema.sql`](file:///home/Saurabh/apeai/backend/app/db/schema.sql) | `feedback` table DDL (Layer 1's persistent output) |
-| [`test_endpoints.sh`](file:///home/Saurabh/apeai/test_endpoints.sh) | `curl`-based test script for all Layer 1 endpoints |
+| [test_endpoints.sh](file:///home/Saurabh/apeai/tests/test_endpoints.sh) | `curl`-based test script for all Layer 1 endpoints |
 
 ---
 
@@ -686,7 +687,7 @@ app.include_router(zendesk.router)
 | Storage destination | Supabase `feedback` table (PostgreSQL) |
 | Security (CORS) | Configured in `main.py`, set to production domain |
 | Backend entry point | `uvicorn backend.app.main:app --reload --port 8000` |
-| Test script | `./test_endpoints.sh` |
+| Test script | `./tests/test_endpoints.sh` |
 | Interactive API docs | `http://localhost:8000/docs` |
 | Frontend ingestion UI | `http://localhost:3000/dashboard` |
 | After Layer 1 | Data goes to Layer 2 (embeddings + clustering) |

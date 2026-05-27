@@ -10,4 +10,4 @@ fi
 # Ensure PYTHONPATH includes current directory
 export PYTHONPATH=.
 
-python3 scripts/test_publish_flow.py
+python3 tests/test_publish_flow.py

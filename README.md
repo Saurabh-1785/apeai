@@ -18,7 +18,7 @@ ApeAI is built with a strictly modular architecture where **every layer is decou
 
 ### Architecture
 
-![ApeAI Architecture](product_ops_architecture.svg)
+![ApeAI Architecture](/docs/product_ops_architecture.svg)
 
 ---
 
@@ -162,7 +162,7 @@ Open a terminal in the project root:
 4. **Verify Database Connection**:
    Ensure the database is reachable and configured:
    ```bash
-   python3 scripts/verify_db.py
+   python3 tests/verify_db.py
    ```
    *Expected Output:*
    ```text
@@ -210,31 +210,31 @@ ApeAI includes a complete suite of validation scripts to test the integrity of a
 Runs basic HTTP POST/GET requests to verify Layer 1 ingestion pipelines (Manual, Email webhook parser, and mock GitHub issue hooks):
 ```bash
 # Ensure FastAPI is running on port 8000
-./test_endpoints.sh
+./tests/test_endpoints.sh
 ```
 
 ### 2. Storage & Metadata Route Verification
 Validates that Layer 2 routes, clustering endpoints, approvals lists, and integrations configurations respond correctly:
 ```bash
-./test_layer2.sh
+./tests/test_layer2.sh
 ```
 
 ### 3. End-to-End Ingestion-to-Storage Integration
 Verifies that when feedback is ingested, it is successfully written, a task embedding is computed, and the pipeline status updates:
 ```bash
-./verify_integration.sh
+./tests/verify_integration.sh
 ```
 
 ### 4. Full AI Pipeline Execution
 Tests Layer 3 by running the complete pipeline from clustering up to full task and estimation generation:
 ```bash
-./verify_layer3.sh
+./tests/verify_layer3.sh
 ```
 
 ### 5. Integrations & Publishing Verification
 Performs a dry-run test of Layer 4 publishing logic. Creates mock Jira, GitHub, and Linear profiles, triggers the "Human-in-the-Loop" gate, blocks draft documents, pushes approved documents, and blocks duplicate publications:
 ```bash
-./verify_publish.sh
+./tests/verify_publish.sh
 ```
 
 ---

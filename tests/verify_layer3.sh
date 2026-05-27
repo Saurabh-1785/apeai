@@ -14,11 +14,11 @@ CLUSTER_RES=$(curl -s -X POST "$BASE_URL/pipeline/cluster")
 echo "✅ Response: $CLUSTER_RES"
 
 # Get the first cluster ID for testing (requires python to parse JSON)
-CLUSTER_ID=$(curl -s "$BASE_URL/clusters/" | python3 -c "import sys, json; print(json.load(sys.stdin)['clusters'][0]['id'] if json.load(sys.stdin)['clusters'] else '')" 2>/dev/null)
+CLUSTER_ID=$(curl -s "$BASE_URL/clusters" | python3 -c "import sys, json; print(json.load(sys.stdin)['clusters'][0]['id'] if json.load(sys.stdin)['clusters'] else '')" 2>/dev/null)
 
 if [ -z "$CLUSTER_ID" ]; then
     # If no cluster exists, check stats and pick one
-    CLUSTER_ID=$(curl -s "$BASE_URL/clusters/" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['clusters'][0]['id'] if data['clusters'] else '')")
+    CLUSTER_ID=$(curl -s "$BASE_URL/clusters" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['clusters'][0]['id'] if data['clusters'] else '')")
 fi
 
 if [ -z "$CLUSTER_ID" ]; then
