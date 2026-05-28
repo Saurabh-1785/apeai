@@ -281,20 +281,6 @@ export default function DocumentReviewPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-400 mr-1">Publish to:</span>
                       
-                      {/* GitHub */}
-                      <button
-                        onClick={() => handlePublish('github')}
-                        disabled={publishingPlatform !== null || activeDocument.status === 'publishing'}
-                        className="flex items-center justify-center p-2 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 disabled:opacity-50 transition-colors"
-                        title="Publish to GitHub Issues"
-                      >
-                        {publishingPlatform === 'github' ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
-                        ) : (
-                          <Github className="w-4 h-4" />
-                        )}
-                      </button>
-
                       {/* Jira */}
                       <button
                         onClick={() => handlePublish('jira')}
@@ -306,20 +292,6 @@ export default function DocumentReviewPage() {
                           <Loader2 className="w-4.5 h-4.5 animate-spin text-slate-500" />
                         ) : (
                           <span>JIRA</span>
-                        )}
-                      </button>
-
-                      {/* Linear */}
-                      <button
-                        onClick={() => handlePublish('linear')}
-                        disabled={publishingPlatform !== null || activeDocument.status === 'publishing'}
-                        className="flex items-center justify-center px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 disabled:opacity-50 transition-colors"
-                        title="Publish to Linear"
-                      >
-                        {publishingPlatform === 'linear' ? (
-                          <Loader2 className="w-4.5 h-4.5 animate-spin text-slate-500" />
-                        ) : (
-                          <span>LIN</span>
                         )}
                       </button>
                     </div>

@@ -27,6 +27,7 @@ export default function IntegrationsPage() {
   const [jiraEmail, setJiraEmail] = useState('');
   const [jiraToken, setJiraToken] = useState('');
   const [jiraProject, setJiraProject] = useState('');
+  const [jiraDryRun, setJiraDryRun] = useState(false);
 
   const loadIntegrations = async () => {
     try {
@@ -60,7 +61,7 @@ export default function IntegrationsPage() {
         payload.api_url = jiraUrl;
         payload.api_key = jiraToken;
         payload.project_id = jiraProject;
-        payload.config = { email: jiraEmail, dry_run: true };
+        payload.config = { email: jiraEmail, dry_run: jiraDryRun };
       }
 
       await api.createIntegration(payload);
@@ -71,6 +72,7 @@ export default function IntegrationsPage() {
       setJiraEmail('');
       setJiraToken('');
       setJiraProject('');
+      setJiraDryRun(false);
 
       loadIntegrations();
     } catch (err: any) {
@@ -197,6 +199,19 @@ export default function IntegrationsPage() {
                     placeholder="e.g. PROJ"
                     className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
                   />
+                </div>
+                
+                <div className="flex items-center gap-2.5 pt-1.5 pb-2">
+                  <input
+                    type="checkbox"
+                    id="jiraDryRun"
+                    checked={jiraDryRun}
+                    onChange={(e) => setJiraDryRun(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 dark:border-zinc-800 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
+                  />
+                  <label htmlFor="jiraDryRun" className="text-xs font-semibold text-slate-500 dark:text-zinc-400 cursor-pointer select-none">
+                    Enable Dry Run (Test connection without creating real tickets)
+                  </label>
                 </div>
                 
                 <button

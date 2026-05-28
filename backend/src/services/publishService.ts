@@ -115,10 +115,10 @@ export async function publishDocument(
     );
   }
 
-  // 4. Must be approved
-  if (doc['status'] !== 'approved') {
+  // 4. Must be approved or published
+  if (doc['status'] !== 'approved' && doc['status'] !== 'published') {
     throw new Error(
-      `Only approved documents can be published. Current status: ${doc['status']}`,
+      `Only approved or published documents can be published. Current status: ${doc['status']}`,
     );
   }
 

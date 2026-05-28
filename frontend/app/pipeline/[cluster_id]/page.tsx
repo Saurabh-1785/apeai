@@ -44,6 +44,7 @@ export default function PipelineTrackerPage() {
   const [generatingPRD, setGeneratingPRD] = useState(false);
   const [generatingStories, setGeneratingStories] = useState(false);
   const [generatingTasks, setGeneratingTasks] = useState(false);
+  const [generatingAll, setGeneratingAll] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -56,9 +57,12 @@ export default function PipelineTrackerPage() {
       setCluster(current);
 
       const docsRes = await api.getDocuments(clusterId);
-      setDocuments(docsRes.documents || []);
+      const docs = docsRes.documents || [];
+      setDocuments(docs);
+      return { cluster: current, documents: docs };
     } catch (err: any) {
       setError(err.message || 'Failed to load pipeline tracker');
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -148,6 +152,65 @@ export default function PipelineTrackerPage() {
       toast(err.message || 'Tasks breakdown failed', 'error');
     } finally {
       setGeneratingTasks(false);
+    }
+  };
+
+  const triggerGenerateAll = async () => {
+    if (generatingAll) return;
+    setGeneratingAll(true);
+    try {
+      let currentData = { cluster: cluster, documents: documents };
+
+      // Step 1: Summary
+      if (!currentData.cluster?.summary) {
+        toast('Generating AI Summary...', 'info');
+        await api.triggerSummarization(clusterId);
+        currentData = await loadData();
+      }
+
+      // Step 2: BRD
+      let brd = currentData.documents.find((d) => d.type === 'brd');
+      if (!brd) {
+        toast('Drafting Business Requirements (BRD)...', 'info');
+        await api.triggerBRD(clusterId);
+        currentData = await loadData();
+        brd = currentData.documents.find((d) => d.type === 'brd');
+      }
+
+      // Step 3: PRD
+      let prd = currentData.documents.find((d) => d.type === 'prd');
+      if (!prd) {
+        if (!brd) throw new Error('Failed to locate generated BRD');
+        toast('Drafting Product Requirements (PRD)...', 'info');
+        await api.triggerPRD(clusterId, brd.id);
+        currentData = await loadData();
+        prd = currentData.documents.find((d) => d.type === 'prd');
+      }
+
+      // Step 4: User Stories
+      let story = currentData.documents.find((d) => d.type === 'story');
+      if (!story) {
+        if (!prd) throw new Error('Failed to locate generated PRD');
+        toast('Drafting Agile User Stories...', 'info');
+        await api.triggerStories(clusterId, prd.id);
+        currentData = await loadData();
+        story = currentData.documents.find((d) => d.type === 'story');
+      }
+
+      // Step 5: Technical Tasks
+      let task = currentData.documents.find((d) => d.type === 'task');
+      if (!task) {
+        if (!story) throw new Error('Failed to locate generated User Stories');
+        toast('Breaking down Technical Tasks...', 'info');
+        await api.triggerTasks(story.id, clusterId);
+        await loadData();
+      }
+
+      toast('Full pipeline generated successfully!', 'success');
+    } catch (err: any) {
+      toast(err.message || 'Pipeline generation failed', 'error');
+    } finally {
+      setGeneratingAll(false);
     }
   };
 
@@ -247,13 +310,27 @@ export default function PipelineTrackerPage() {
             </div>
             <p className="text-sm text-slate-500 mt-1">Workflow Stepper: Trigger and monitor document pipelines.</p>
           </div>
-          <Link
-            href={`/review/${clusterId}`}
-            className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors"
-          >
-            <FileText className="w-4 h-4" />
-            Review & Edit Drafts
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={triggerGenerateAll}
+              disabled={generatingAll || (hasSummary && hasBRD && hasPRD && hasStories && hasTasks)}
+              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-all disabled:opacity-50 border border-transparent disabled:border-slate-200"
+            >
+              {generatingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {generatingAll ? 'Generating...' : 'Generate All'}
+            </button>
+            <Link
+              href={`/review/${clusterId}`}
+              className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Review & Edit Drafts
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -298,10 +375,10 @@ export default function PipelineTrackerPage() {
                     {isActive && step.action && (
                       <button
                         onClick={step.action}
-                        disabled={step.loading}
+                        disabled={step.loading || generatingAll}
                         className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-colors border border-slate-900 disabled:opacity-50"
                       >
-                        {step.loading ? (
+                        {step.loading || (isActive && generatingAll) ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <Sparkles className="w-3.5 h-3.5" />
