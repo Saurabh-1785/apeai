@@ -9,7 +9,7 @@
  *   - Starts the server on port 8000
  *
  * Run with:
- *   cd /home/Saurabh/apeai/backend-node
+ *   cd /home/Saurabh/apeai/backend
  *   npm run dev
  */
 

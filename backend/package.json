@@ -1,5 +1,5 @@
 {
-  "name": "apeai-backend-node",
+  "name": "apeai-backend",
   "version": "0.2.0",
   "description": "ApeAI Product Operations API — Node.js + Express + TypeScript",
   "main": "src/index.ts",

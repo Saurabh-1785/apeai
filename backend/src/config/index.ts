@@ -9,8 +9,8 @@
 import path from 'path';
 import dotenv from 'dotenv';
 
-// Load from root .env (one level above backend-node/)
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load from root .env (two levels above backend/)
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export interface Settings {
   supabaseUrl: string;
