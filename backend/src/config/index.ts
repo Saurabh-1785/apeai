@@ -28,7 +28,7 @@ const settings: Settings = {
   supabaseKey: process.env.SUPABASE_KEY ?? '',
   googleApiKey: process.env.GOOGLE_API_KEY || undefined,
   appHost: process.env.APP_HOST ?? '0.0.0.0',
-  appPort: parseInt(process.env.APP_PORT ?? '8000', 10),
+  appPort: parseInt(process.env.APP_PORT ?? process.env.PORT ?? '8000', 10),
   appDebug: (process.env.APP_DEBUG ?? 'true') === 'true',
   get supabaseConfigured() {
     return Boolean(this.supabaseUrl && this.supabaseKey);
