@@ -7,6 +7,7 @@ import { Cluster } from '@/types/models';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RecentFeedbacks } from '@/components/RecentFeedbacks';
+import { ConnectorSimulator } from '@/components/ConnectorSimulator';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthContext';
 import { 
@@ -25,7 +26,11 @@ import {
   FileCheck2,
   Sparkles,
   RefreshCw,
-  Upload
+  Upload,
+  Star,
+  MessageCircle,
+  Mic,
+  Zap
 } from 'lucide-react';
 
 export default function FeedbackInboxPage() {
@@ -203,6 +208,82 @@ export default function FeedbackInboxPage() {
         </div>
 
       </div>
+
+      {/* Source Distribution Tags */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* App Store */}
+        <div className="group bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 p-2 rounded-lg border border-amber-500/10">
+              <Star className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">App Store</span>
+          </div>
+          <h4 className="text-xl font-extrabold text-slate-800 dark:text-zinc-100">
+            {(stats.by_source.appstore || 0) + (stats.by_source.google_play || 0)}
+          </h4>
+        </div>
+
+        {/* Reddit */}
+        <div className="group bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 p-2 rounded-lg border border-orange-500/10">
+              <MessageCircle className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">Reddit</span>
+          </div>
+          <h4 className="text-xl font-extrabold text-slate-800 dark:text-zinc-100">
+            {stats.by_source.reddit || 0}
+          </h4>
+        </div>
+
+        {/* Intercom / Zendesk */}
+        <div className="group bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 p-2 rounded-lg border border-blue-500/10">
+              <Inbox className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">Support</span>
+          </div>
+          <h4 className="text-xl font-extrabold text-slate-800 dark:text-zinc-100">
+            {(stats.by_source.intercom || 0) + (stats.by_source.zendesk || 0)}
+          </h4>
+        </div>
+
+        {/* Transcripts */}
+        <div className="group bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 p-2 rounded-lg border border-purple-500/10">
+              <Mic className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">Transcripts</span>
+          </div>
+          <h4 className="text-xl font-extrabold text-slate-800 dark:text-zinc-100">
+            {stats.by_source.transcript || 0}
+          </h4>
+        </div>
+
+        {/* Sentry / PostHog */}
+        <div className="group bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 p-2 rounded-lg border border-red-500/10">
+              <Zap className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">Errors</span>
+          </div>
+          <h4 className="text-xl font-extrabold text-slate-800 dark:text-zinc-100">
+            {(stats.by_source.sentry || 0) + (stats.by_source.posthog || 0)}
+          </h4>
+        </div>
+      </div>
+
+      {/* Connector Simulator */}
+      <ConnectorSimulator onIngestionComplete={fetchData} />
 
       {/* Error Alert */}
       {error && (

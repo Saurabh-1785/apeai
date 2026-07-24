@@ -92,6 +92,29 @@ export const api = {
     return request<any>(`/feedback/recent?limit=${limit}`);
   },
 
+  // --- MULTI-SOURCE INGESTION (Layer 1) ---
+  async simulateIngestion(source: string): Promise<any> {
+    return request<any>(`/api/ingestion/simulate/${source}`, { method: 'POST' });
+  },
+
+  async getIngestionStatus(): Promise<any> {
+    return request<any>('/api/ingestion/status');
+  },
+
+  async ingestAppStoreReviews(reviews: any[]): Promise<any> {
+    return request<any>('/api/ingestion/appstore', {
+      method: 'POST',
+      body: JSON.stringify(reviews),
+    });
+  },
+
+  async ingestRedditPosts(posts: any[]): Promise<any> {
+    return request<any>('/api/ingestion/reddit', {
+      method: 'POST',
+      body: JSON.stringify(posts),
+    });
+  },
+
   // --- CLUSTERING & PIPELINE (Layer 3) ---
   async getClusters(): Promise<{ clusters: Cluster[] }> {
     return request<{ clusters: Cluster[] }>('/clusters');

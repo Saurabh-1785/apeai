@@ -23,6 +23,10 @@ import { errorHandler } from './middleware/errorHandler';
 // ─── Route Imports ────────────────────────────────────────────
 // Layer 1 — Ingestion
 import { feedbackRouter } from './routes/feedback';
+import { ingestionRouter } from './routes/ingestion';
+
+// Layer 1 — Scheduler (background polling)
+import { startScheduler } from './services/scheduler';
 
 // Layer 2 — Storage
 import { embeddingsRouter } from './routes/embeddings';
@@ -49,7 +53,7 @@ console.info('🦍 ApeAI — Starting up (Node.js + Express + TypeScript)');
 console.info('='.repeat(60));
 console.info(`  Supabase:  ${settings.supabaseConfigured ? '✅ configured' : '❌ not configured'}`);
 console.info(`  Google AI: ${settings.googleConfigured ? '✅ configured' : '⏭️  not configured (needed for embeddings)'}`);
-console.info(`  Ingestion: ✅ manual and csv endpoints ready`);
+console.info(`  Ingestion: ✅ manual, csv, and multi-source connectors ready`);
 console.info('-'.repeat(60));
 
 // ─── CORS ─────────────────────────────────────────────────────
@@ -85,6 +89,13 @@ app.get('/', (_req: Request, res: Response) => {
         manual_feedback: 'POST /feedback/manual',
         csv_upload: 'POST /feedback/csv',
         stats: 'GET /feedback/stats',
+        appstore: 'POST /api/ingestion/appstore',
+        reddit: 'POST /api/ingestion/reddit',
+        support_webhook: 'POST /api/ingestion/webhooks/support',
+        transcript_webhook: 'POST /api/ingestion/webhooks/transcript',
+        observability_webhook: 'POST /api/ingestion/webhooks/observability',
+        simulate: 'POST /api/ingestion/simulate/:source',
+        ingestion_status: 'GET /api/ingestion/status',
       },
       layer_2_storage: {
         embeddings: '/embeddings/*',
@@ -126,6 +137,7 @@ app.get('/feedback/stats', async (_req: Request, res: Response, next: NextFuncti
 // ─── Layer 1 Routes (Ingestion) ───────────────────────────────
 
 app.use('/feedback', feedbackRouter);
+app.use('/api/ingestion', ingestionRouter);
 
 // ─── Layer 2 Routes (Storage) ─────────────────────────────────
 
@@ -163,6 +175,10 @@ app.listen(PORT, HOST, () => {
   console.info(`🚀 ApeAI Node.js backend running at http://${HOST}:${PORT}`);
   console.info(`   Health: http://localhost:${PORT}/health`);
   console.info(`   Root:   http://localhost:${PORT}/`);
+  console.info(`   Ingestion: http://localhost:${PORT}/api/ingestion/status`);
+
+  // Start background scheduler (opt-in via SCHEDULER_ENABLED=true)
+  startScheduler();
 });
 
 export default app;
