@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Cpu, Mail, Lock, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+
+/** Post-login destination from ?next=, restricted to same-origin paths. */
+function getNextPath(): string {
+  if (typeof window === 'undefined') return '/dashboard';
+  const next = new URLSearchParams(window.location.search).get('next');
+  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,11 +22,10 @@ export default function LoginPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // If already logged in, redirect
-  if (user) {
-    router.push('/dashboard');
-    return null;
-  }
+  // If already logged in, redirect (in an effect — never navigate during render)
+  useEffect(() => {
+    if (user) router.replace(getNextPath());
+  }, [user, router]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,11 +41,13 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/dashboard');
+      router.replace(getNextPath());
     }
   };
 
 
+
+  if (user) return null;
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">

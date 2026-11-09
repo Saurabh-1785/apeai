@@ -2,10 +2,10 @@
  * ApeAI — Feedback Routes (Layer 1)
  *
  * POST /feedback/manual   — Submit single text feedback
+ * GET  /feedback/stats    — Feedback counts by source
  * GET  /feedback/recent   — Get recent feedback
  * POST /feedback/csv      — Upload CSV file with multiple feedback items
- *
- * Mirrors Python routes/manual.py exactly.
+
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -15,13 +15,16 @@ import { requireAuth } from '../middleware/auth';
 import { normalizeManual, normalizeCsvRow } from '../services/normalize';
 import {
   saveFeedback,
-  saveFeedbackBatch,
+  saveFeedbackBatchDeduped,
   getRecentFeedbacks,
+  getFeedbackStats,
 } from '../services/saveFeedback';
+import { parseIntParam } from '../services/ownership';
 import { ManualFeedbackInput } from '../types/feedback';
 
 export const feedbackRouter = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const MAX_CSV_BYTES = 5 * 1024 * 1024; // 5 MB
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_CSV_BYTES, files: 1 } });
 
 // POST /feedback/manual
 feedbackRouter.post(
@@ -62,15 +65,28 @@ feedbackRouter.post(
   },
 );
 
+// GET /feedback/stats — counts for the authenticated user
+feedbackRouter.get(
+  '/stats',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json(await getFeedbackStats(req.userId!));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // GET /feedback/recent
 feedbackRouter.get(
   '/recent',
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
-    const limit = parseInt((req.query['limit'] as string) ?? '50', 10);
+    const limit = parseIntParam(req.query['limit'], 50, 200) || 50;
 
     try {
-      const items = await getRecentFeedbacks(req.userId, limit);
+      const items = await getRecentFeedbacks(req.userId!, limit);
       res.json({ feedbacks: items });
     } catch (err) {
       next(err);
@@ -99,28 +115,25 @@ feedbackRouter.post(
     }
 
     try {
-      // Decode buffer
-      let textContent: string;
-      try {
-        textContent = buffer.toString('utf-8');
-      } catch {
-        textContent = buffer.toString('latin1');
-      }
+      const textContent = buffer.toString('utf-8');
 
       // Parse CSV
       let records: Array<Record<string, string>>;
       try {
         records = parse(textContent, {
-          columns: true,
+          bom: true, // Excel "CSV UTF-8" exports start with a byte-order mark
+          columns: (header: string[]) => header.map((h) => h.trim()),
           skip_empty_lines: true,
           trim: true,
+          relax_column_count: true,
         }) as Array<Record<string, string>>;
       } catch (parseErr) {
-        res.status(400).json({ detail: `CSV parse error: ${parseErr}` });
+        res.status(400).json({ detail: `CSV parse error: ${parseErr instanceof Error ? parseErr.message : parseErr}` });
         return;
       }
 
-      if (records.length === 0 || !records[0] || !Object.keys(records[0]).includes('content')) {
+      const hasContent = records[0] && Object.keys(records[0]).some((k) => k.toLowerCase() === 'content');
+      if (records.length === 0 || !hasContent) {
         const cols = records[0] ? Object.keys(records[0]) : [];
         res.status(400).json({
           detail: `CSV must have a 'content' column. Found columns: ${cols.join(', ')}`,
@@ -136,6 +149,7 @@ feedbackRouter.post(
         try {
           const item = normalizeCsvRow(records[i], rowNumber);
           item.userId = req.userId;
+          item.metadata = { ...item.metadata, file_name: originalname };
           feedbackItems.push(item);
         } catch (err) {
           errors.push({ row: rowNumber, error: String(err) });
@@ -147,7 +161,7 @@ feedbackRouter.post(
         return;
       }
 
-      const saved = await saveFeedbackBatch(feedbackItems);
+      const { saved } = await saveFeedbackBatchDeduped(feedbackItems);
       const totalRows = feedbackItems.length + errors.length;
 
       res.json({

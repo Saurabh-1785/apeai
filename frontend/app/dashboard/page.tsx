@@ -37,6 +37,8 @@ export default function FeedbackInboxPage() {
   const { toast } = useToast();
   const { session, loading: authLoading } = useAuth();
   const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [clusterTotal, setClusterTotal] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [stats, setStats] = useState<{ total: number; by_source: Record<string, number> }>({ total: 0, by_source: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,17 +50,20 @@ export default function FeedbackInboxPage() {
     try {
       setError(null);
       const [clusterResult, statsResult] = await Promise.allSettled([
-        api.getClusters(),
+        api.getClusters({ limit: 100 }),
         api.getFeedbackStats()
       ]);
       
       if (clusterResult.status === 'fulfilled') {
         setClusters(clusterResult.value.clusters || []);
+        setClusterTotal(clusterResult.value.total ?? (clusterResult.value.clusters || []).length);
       } else {
         console.error('Failed to fetch clusters:', clusterResult.reason);
         setError(`Failed to fetch clusters: ${clusterResult.reason?.message || 'Unknown error'}`);
       }
       
+      setRefreshKey((k) => k + 1);
+
       if (statsResult.status === 'fulfilled') {
         setStats(statsResult.value || { total: 0, by_source: {} });
       } else {
@@ -177,7 +182,7 @@ export default function FeedbackInboxPage() {
           </div>
           <div>
             <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Active Clusters</p>
-            <h3 className="text-3xl font-extrabold text-slate-800 dark:text-zinc-100 tracking-tight mt-1">{clusters.length}</h3>
+            <h3 className="text-3xl font-extrabold text-slate-800 dark:text-zinc-100 tracking-tight mt-1">{clusterTotal}</h3>
           </div>
         </div>
 
@@ -298,7 +303,7 @@ export default function FeedbackInboxPage() {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Active Feedback Clusters</h3>
           <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 px-3 py-1 rounded-lg border dark:border-zinc-800">
-            {clusters.length} Active Themes
+            {clusterTotal} Theme{clusterTotal === 1 ? '' : 's'}
           </span>
         </div>
 
@@ -319,10 +324,12 @@ export default function FeedbackInboxPage() {
               {clusters.map((cluster) => {
                 // Determine highlight boundary borders based on active status
                 let borderHighlight = "border-l-slate-900 dark:border-l-white";
-                if (cluster.status === 'approved') {
+                if (cluster.status === 'tickets_created' || cluster.status === 'approved') {
                   borderHighlight = "border-l-emerald-500 dark:border-l-emerald-400";
-                } else if (cluster.status === 'reviewing') {
+                } else if (['brd_generated', 'prd_generated', 'stories_generated', 'tasks_generated'].includes(cluster.status)) {
                   borderHighlight = "border-l-amber-500 dark:border-l-amber-400";
+                } else if (cluster.status === 'archived') {
+                  borderHighlight = "border-l-zinc-300 dark:border-l-zinc-700 opacity-70";
                 }
 
                 return (
@@ -340,7 +347,7 @@ export default function FeedbackInboxPage() {
                       </p>
                       <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 dark:text-zinc-500 pt-1">
                         <span className="flex items-center gap-1">
-                          Inbound Signals: <strong className="text-slate-600 dark:text-zinc-300 font-extrabold">{cluster.feedback_count || 1}</strong>
+                          Inbound Signals: <strong className="text-slate-600 dark:text-zinc-300 font-extrabold">{cluster.feedback_count ?? 0}</strong>
                         </span>
                         <span>•</span>
                         <span>Created: {new Date(cluster.created_at).toLocaleDateString()}</span>
@@ -374,7 +381,7 @@ export default function FeedbackInboxPage() {
         </div>
       
       {/* Recent Feedbacks List */}
-      <RecentFeedbacks />
+      <RecentFeedbacks refreshKey={refreshKey} />
     </div>
     </ProtectedRoute>
   );

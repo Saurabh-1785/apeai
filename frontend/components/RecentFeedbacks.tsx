@@ -5,7 +5,7 @@ import { api } from '@/services/api';
 import { useAuth } from '@/components/AuthContext';
 import { Loader2, Database, Code, LayoutList, RefreshCw, AlertTriangle } from 'lucide-react';
 
-export function RecentFeedbacks() {
+export function RecentFeedbacks({ refreshKey = 0 }: { refreshKey?: number }) {
   const { session, loading: authLoading } = useAuth();
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ export function RecentFeedbacks() {
     } else if (!authLoading) {
       setLoading(false);
     }
-  }, [authLoading, session]);
+  }, [authLoading, session, refreshKey]);
 
   return (
     <div className="space-y-6 animate-fade-in mt-12 border-t border-slate-200/60 dark:border-zinc-900/80 pt-8">

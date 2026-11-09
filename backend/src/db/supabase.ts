@@ -45,3 +45,36 @@ export class RuntimeError extends Error {
     this.name = 'RuntimeError';
   }
 }
+
+// ─── Query Helpers ────────────────────────────────────────────
+
+type PageResult<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
+
+/**
+ * Fetches every row of a query by paging through it.
+ * PostgREST caps responses at 1000 rows by default, so any "select all"
+ * must page or it silently truncates.
+ *
+ * @param buildPage - builds the query for rows [from, to] (inclusive)
+ */
+export async function fetchAllRows<T>(
+  buildPage: (from: number, to: number) => PageResult<T>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await buildPage(from, from + pageSize - 1);
+    if (error) throw new Error(`Query failed: ${error.message}`);
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows;
+}
+
+/** Splits an array into chunks (keeps `.in()` filters under URL length limits). */
+export function chunk<T>(items: T[], size = 200): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}

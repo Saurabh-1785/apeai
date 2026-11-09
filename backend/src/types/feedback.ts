@@ -55,7 +55,7 @@ export interface AppStoreReviewInput {
 
 export interface RedditPostInput {
   post_id: string;
-  title: string;
+  title?: string;
   content: string; // selftext or comment body
   author: string;
   subreddit: string;
@@ -81,7 +81,7 @@ export interface TranscriptWebhookInput {
   transcript_id: string;
   meeting_title: string;
   content: string; // full transcript text
-  participants: string[];
+  participants?: string[];
   duration_seconds?: number;
   platform: 'fireflies' | 'zoom';
   meeting_date?: string; // ISO string

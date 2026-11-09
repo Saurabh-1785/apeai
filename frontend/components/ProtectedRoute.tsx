@@ -5,16 +5,19 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthContext';
 import { Loader2 } from 'lucide-react';
 
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/verify-otp'];
+
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const isPublic = PUBLIC_PATHS.includes(pathname);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
-      router.push('/login');
+    if (!loading && !user && !isPublic) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [user, loading, router, pathname]);
+  }, [user, loading, router, pathname, isPublic]);
 
   if (loading) {
     return (
@@ -25,9 +28,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  if (!user && pathname !== '/login' && pathname !== '/signup') {
-    return null; // Will redirect in useEffect
-  }
+  if (!user && !isPublic) return null; // redirecting
 
   return <>{children}</>;
 }

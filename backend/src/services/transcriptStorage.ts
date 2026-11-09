@@ -89,7 +89,7 @@ export async function ingestTranscript(
 
   // Emit Layer 3 trigger notification (async — fire and forget)
   console.info(
-    `🎙️ Transcript ingested: "${data.meeting_title}" (${data.participants.length} participants). ` +
+    `🎙️ Transcript ingested: "${data.meeting_title}" (${data.participants?.length ?? 0} participants). ` +
     `Layer 3 trigger emitted for feedback id=${(saved as Record<string, unknown>)['id']}`,
   );
 

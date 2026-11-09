@@ -2,10 +2,11 @@
  * ApeAI — Global Error Handler Middleware
  *
  * Catches all errors passed to next(err) and returns consistent
- * JSON error responses. Mirrors FastAPI's global_exception_handler.
+ * JSON error responses.
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { HttpError } from '../utils/errors';
 
 const CONNECTION_ERROR_TERMS = [
   'Name or service not known',
@@ -13,23 +14,32 @@ const CONNECTION_ERROR_TERMS = [
   'ConnectError',
   'ECONNREFUSED',
   'ENOTFOUND',
+  'Service Unavailable',
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(
   err: Error,
-  req: Request,
+  _req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
-  const message = err.message ?? String(err);
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ detail: err.message });
+    return;
+  }
 
-  const isConnectionError = CONNECTION_ERROR_TERMS.some((term) =>
-    message.includes(term),
-  );
+  // multer file-size errors etc.
+  if ((err as { code?: string }).code === 'LIMIT_FILE_SIZE') {
+    res.status(413).json({ detail: 'Uploaded file is too large' });
+    return;
+  }
 
-  if (isConnectionError) {
-    res.status(503).json({ detail: `Database unavailable: ${message}` });
+  const message = err?.message ?? String(err);
+
+  if (CONNECTION_ERROR_TERMS.some((term) => message.includes(term))) {
+    console.error('Database unavailable:', message);
+    res.status(503).json({ detail: 'Database unavailable. Please try again shortly.' });
     return;
   }
 

@@ -1,215 +1,203 @@
-import { Cluster, Document, Integration, IngestedFeedback } from '../types/models';
+import {
+  Cluster,
+  Document,
+  Integration,
+  TicketLink,
+  DuplicateTicket,
+  PublishResult,
+  FeedbackItem,
+} from '../types/models';
 import { supabase } from '../lib/supabase';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-async function getAuthToken() {
-  const { data: { session } } = await supabase.auth.getSession();
+async function getAuthToken(): Promise<string | undefined> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return session?.access_token;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`;
+/** Turns a failed response into an Error carrying the backend's `detail` message. */
+async function toError(response: Response): Promise<Error> {
+  let message = `Request failed with status ${response.status}`;
+  try {
+    const data = await response.json();
+    message = data.detail || data.message || message;
+  } catch {
+    // body was not JSON
+  }
+  if (response.status === 401) message = 'Your session has expired. Please sign in again.';
+  const err = new Error(message) as Error & { status?: number };
+  err.status = response.status;
+  return err;
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAuthToken();
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options?.headers as Record<string, string> || {}),
-  };
+  const headers: Record<string, string> = { ...((options.headers as Record<string, string>) || {}) };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  // Only JSON bodies get a JSON content type (FormData sets its own boundary).
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
   }
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let errMsg = `Request failed with status ${response.status}`;
-    try {
-      const data = await response.json();
-      errMsg = data.detail || data.message || errMsg;
-    } catch {
-      // Ignored if not JSON
-    }
-    throw new Error(errMsg);
-  }
-
-  // Handle empty bodies (e.g. 204 No Content)
-  if (response.status === 204) {
-    return {} as T;
-  }
-
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (!response.ok) throw await toError(response);
+  if (response.status === 204) return {} as T;
   return response.json() as Promise<T>;
 }
 
+const enc = encodeURIComponent;
+
 export const api = {
   // --- INGESTION (Layer 1) ---
-  async ingestManualFeedback(content: string, author: string = 'anonymous'): Promise<any> {
-    return request<any>('/feedback/manual', {
-      method: 'POST',
-      body: JSON.stringify({ content, author }),
-    });
+  ingestManualFeedback(content: string, author = 'anonymous'): Promise<any> {
+    return request('/feedback/manual', { method: 'POST', body: JSON.stringify({ content, author }) });
   },
 
-  async ingestCSVFeedback(file: File): Promise<any> {
+  ingestCSVFeedback(file: File): Promise<{ total_rows: number; saved: number; errors: Array<{ row: number; error: string }>; message: string }> {
     const formData = new FormData();
     formData.append('file', file);
-    
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const url = `${API_BASE}/feedback/csv`;
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      headers,
-    });
-
-    if (!response.ok) {
-      let errMsg = `Request failed with status ${response.status}`;
-      try {
-        const data = await response.json();
-        errMsg = data.detail || data.message || errMsg;
-      } catch {
-        // Ignored
-      }
-      throw new Error(errMsg);
-    }
-    return response.json();
+    return request('/feedback/csv', { method: 'POST', body: formData });
   },
 
-  async getFeedbackStats(): Promise<any> {
-    return request<any>('/feedback/stats');
+  getFeedbackStats(): Promise<{ total: number; by_source: Record<string, number> }> {
+    return request('/feedback/stats');
   },
 
-  async getRecentFeedbacks(limit: number = 50): Promise<any> {
-    return request<any>(`/feedback/recent?limit=${limit}`);
+  getRecentFeedbacks(limit = 50): Promise<{ feedbacks: FeedbackItem[] }> {
+    return request(`/feedback/recent?limit=${limit}`);
   },
 
   // --- MULTI-SOURCE INGESTION (Layer 1) ---
-  async simulateIngestion(source: string): Promise<any> {
-    return request<any>(`/api/ingestion/simulate/${source}`, { method: 'POST' });
+  simulateIngestion(source: string): Promise<any> {
+    return request(`/api/ingestion/simulate/${enc(source)}`, { method: 'POST' });
   },
 
-  async getIngestionStatus(): Promise<any> {
-    return request<any>('/api/ingestion/status');
+  getIngestionStatus(): Promise<any> {
+    return request('/api/ingestion/status');
   },
 
-  async ingestAppStoreReviews(reviews: any[]): Promise<any> {
-    return request<any>('/api/ingestion/appstore', {
+  ingestAppStoreReviews(reviews: any[]): Promise<any> {
+    return request('/api/ingestion/appstore', { method: 'POST', body: JSON.stringify(reviews) });
+  },
+
+  ingestRedditPosts(posts: any[]): Promise<any> {
+    return request('/api/ingestion/reddit', { method: 'POST', body: JSON.stringify(posts) });
+  },
+
+  // --- CLUSTERS ---
+  getClusters(params: { limit?: number; offset?: number; status?: string } = {}): Promise<{ clusters: Cluster[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.offset) qs.set('offset', String(params.offset));
+    if (params.status) qs.set('status', params.status);
+    const q = qs.toString();
+    return request(`/clusters${q ? `?${q}` : ''}`);
+  },
+
+  getCluster(clusterId: string): Promise<Cluster> {
+    return request(`/clusters/${enc(clusterId)}`);
+  },
+
+  getClusterDuplicates(clusterId: string, threshold = 0.8): Promise<{ duplicates: DuplicateTicket[]; count: number }> {
+    return request(`/clusters/${enc(clusterId)}/duplicates?threshold=${threshold}`);
+  },
+
+  appendClusterToTicket(clusterId: string, targetDocumentId: string): Promise<any> {
+    return request(`/clusters/${enc(clusterId)}/append`, {
       method: 'POST',
-      body: JSON.stringify(reviews),
+      body: JSON.stringify({ target_document_id: targetDocumentId }),
     });
   },
 
-  async ingestRedditPosts(posts: any[]): Promise<any> {
-    return request<any>('/api/ingestion/reddit', {
-      method: 'POST',
-      body: JSON.stringify(posts),
-    });
+  // --- PIPELINE (Layer 3) ---
+  triggerClustering(): Promise<any> {
+    return request('/pipeline/cluster', { method: 'POST' });
   },
 
-  // --- CLUSTERING & PIPELINE (Layer 3) ---
-  async getClusters(): Promise<{ clusters: Cluster[] }> {
-    return request<{ clusters: Cluster[] }>('/clusters');
+  getPipelineStatus(): Promise<any> {
+    return request('/pipeline/status');
   },
 
-  async triggerClustering(): Promise<any> {
-    return request<any>('/pipeline/cluster', { method: 'POST' });
+  triggerSummarization(clusterId: string): Promise<any> {
+    return request(`/pipeline/summarize/${enc(clusterId)}`, { method: 'POST' });
   },
 
-  async getPipelineStatus(): Promise<any> {
-    return request<any>('/pipeline/status');
+  triggerBRD(clusterId: string): Promise<Document> {
+    return request(`/pipeline/generate-brd/${enc(clusterId)}`, { method: 'POST' });
   },
 
-  async triggerSummarization(clusterId: string): Promise<any> {
-    return request<any>(`/pipeline/summarize/${clusterId}`, { method: 'POST' });
+  triggerPRD(clusterId: string, brdId: string): Promise<Document> {
+    return request(`/pipeline/generate-prd/${enc(clusterId)}?brd_id=${enc(brdId)}`, { method: 'POST' });
   },
 
-  async triggerBRD(clusterId: string): Promise<any> {
-    return request<any>(`/pipeline/generate-brd/${clusterId}`, { method: 'POST' });
+  triggerStories(clusterId: string, prdId: string): Promise<Document[]> {
+    return request(`/pipeline/generate-stories/${enc(clusterId)}?prd_id=${enc(prdId)}`, { method: 'POST' });
   },
 
-  async triggerPRD(clusterId: string, brdId: string): Promise<any> {
-    return request<any>(`/pipeline/generate-prd/${clusterId}?brd_id=${brdId}`, { method: 'POST' });
-  },
-
-  async triggerStories(clusterId: string, prdId: string): Promise<any> {
-    return request<any>(`/pipeline/generate-stories/${clusterId}?prd_id=${prdId}`, { method: 'POST' });
-  },
-
-  async triggerTasks(storyId: string, clusterId: string): Promise<any> {
-    return request<any>(`/pipeline/generate-tasks/${storyId}?cluster_id=${clusterId}`, { method: 'POST' });
+  triggerTasks(storyId: string, clusterId: string): Promise<Document> {
+    return request(`/pipeline/generate-tasks/${enc(storyId)}?cluster_id=${enc(clusterId)}`, { method: 'POST' });
   },
 
   // --- DOCUMENTS (Human-in-the-Loop) ---
-  async getDocuments(clusterId?: string, type?: string): Promise<{ documents: Document[] }> {
-    const params = new URLSearchParams();
+  getDocuments(clusterId?: string, type?: string): Promise<{ documents: Document[]; total: number }> {
+    const params = new URLSearchParams({ limit: '500' });
     if (clusterId) params.append('cluster_id', clusterId);
     if (type) params.append('type', type);
-    return request<{ documents: Document[] }>(`/documents?${params.toString()}`);
+    return request(`/documents?${params.toString()}`);
   },
 
-  async getDocument(documentId: string): Promise<Document> {
-    return request<Document>(`/documents/${documentId}`);
+  getDocument(documentId: string): Promise<Document> {
+    return request(`/documents/${enc(documentId)}`);
   },
 
-  async updateDocument(documentId: string, payload: { title?: string; content?: any; status?: string }): Promise<Document> {
-    return request<Document>(`/documents/${documentId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
+  updateDocument(documentId: string, payload: { title?: string; content?: any; status?: 'draft' | 'review' }): Promise<Document> {
+    return request(`/documents/${enc(documentId)}`, { method: 'PATCH', body: JSON.stringify(payload) });
   },
 
-  async approveDocument(documentId: string, approvedBy: string = 'Human Admin'): Promise<any> {
-    // Creates an approval entry
-    return request<any>('/approvals', {
+  /** Approve a document. Pass `editedContent` to approve with reviewer edits. Reviewer = signed-in user. */
+  approveDocument(documentId: string, opts: { editedContent?: any; notes?: string } = {}): Promise<any> {
+    return request('/approvals', {
       method: 'POST',
       body: JSON.stringify({
         document_id: documentId,
         approved: true,
-        reviewed_by: approvedBy,
-        review_notes: 'Approved via human review portal'
+        review_notes: opts.notes ?? 'Approved via human review portal',
+        edited_content: opts.editedContent,
       }),
     });
   },
 
-  // --- INTEGRATIONS & PUBLISHING (Layer 4) ---
-  async getIntegrations(): Promise<{ integrations: Integration[] }> {
-    return request<{ integrations: Integration[] }>('/integrations');
-  },
-
-  async createIntegration(payload: Partial<Integration>): Promise<Integration> {
-    return request<Integration>('/integrations', {
+  rejectDocument(documentId: string, notes?: string): Promise<any> {
+    return request('/approvals', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ document_id: documentId, approved: false, review_notes: notes || null }),
     });
   },
 
-  async deleteIntegration(integrationId: string): Promise<any> {
-    return request<any>(`/integrations/${integrationId}`, {
-      method: 'DELETE',
-    });
+  getTicketLinks(documentId: string): Promise<{ ticket_links: TicketLink[]; total: number }> {
+    return request(`/ticket-links?document_id=${enc(documentId)}`);
   },
 
-  async publishToGitHub(documentId: string, integrationId?: string): Promise<any> {
-    const url = `/publish/github/${documentId}${integrationId ? `?integration_id=${integrationId}` : ''}`;
-    return request<any>(url, { method: 'POST' });
+  // --- INTEGRATIONS & PUBLISHING (Layer 4) ---
+  getIntegrations(): Promise<{ integrations: Integration[] }> {
+    return request('/integrations');
   },
 
-  async publishToJira(documentId: string, integrationId?: string): Promise<any> {
-    const url = `/publish/jira/${documentId}${integrationId ? `?integration_id=${integrationId}` : ''}`;
-    return request<any>(url, { method: 'POST' });
+  createIntegration(payload: Partial<Integration>): Promise<Integration> {
+    return request('/integrations', { method: 'POST', body: JSON.stringify(payload) });
   },
 
-  async publishToLinear(documentId: string, integrationId?: string): Promise<any> {
-    const url = `/publish/linear/${documentId}${integrationId ? `?integration_id=${integrationId}` : ''}`;
-    return request<any>(url, { method: 'POST' });
+  deleteIntegration(integrationId: string): Promise<any> {
+    return request(`/integrations/${enc(integrationId)}`, { method: 'DELETE' });
+  },
+
+  /** Jira is the only publisher implemented on the backend. */
+  publishToJira(documentId: string, integrationId?: string): Promise<PublishResult> {
+    const qs = integrationId ? `?integration_id=${enc(integrationId)}` : '';
+    return request(`/publish/jira/${enc(documentId)}${qs}`, { method: 'POST' });
   },
 };

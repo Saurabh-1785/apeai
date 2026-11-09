@@ -66,7 +66,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
 
   // If this is the introductory landing page or an auth page, we want a clean, full-screen canvas
   const isLandingPage = pathname === '/';
-  const isAuthPage = ['/login', '/signup', '/complete-profile'].includes(pathname);
+  const isAuthPage = ['/login', '/signup', '/verify-otp', '/complete-profile'].includes(pathname);
 
   // Prevent flash before hydration completes
   if (!mounted) {

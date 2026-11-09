@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -18,11 +18,10 @@ export default function SignupPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // If already logged in, redirect
-  if (user) {
-    router.push('/dashboard');
-    return null;
-  }
+  // If already logged in, redirect (in an effect — never navigate during render)
+  useEffect(() => {
+    if (user) router.replace('/dashboard');
+  }, [user, router]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +58,8 @@ export default function SignupPage() {
 
 
 
+  if (user) return null;
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
       <div className="max-w-md w-full space-y-8 bg-white dark:bg-[#0c0c0e] p-8 md:p-10 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl shadow-slate-900/5">
@@ -84,8 +85,14 @@ export default function SignupPage() {
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
             <div>
               <p className="font-bold text-lg">Check your email!</p>
-              <p className="text-sm opacity-80 mt-1">We've sent you a verification link. Please click it to activate your account.</p>
+              <p className="text-sm opacity-80 mt-1">We've sent a verification email. Click the link in it, or enter the 6-digit code if you received one.</p>
             </div>
+            <Link
+              href={`/verify-otp?email=${encodeURIComponent(email)}`}
+              className="text-sm font-bold underline hover:opacity-80"
+            >
+              Enter verification code
+            </Link>
           </div>
         ) : (
           <>

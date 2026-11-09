@@ -40,10 +40,10 @@ export default function CompleteProfilePage() {
       return;
     }
 
+    if (!user) return;
+
     setLoading(true);
     setError(null);
-
-    if (!user) return;
 
     // Upsert the profile in the database
     const { error } = await supabase

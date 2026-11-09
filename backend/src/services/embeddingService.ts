@@ -1,200 +1,201 @@
 /**
  * ApeAI — Embedding Service (Google Gemini Edition)
  *
- * Generates vector embeddings using Google's text-embedding-004 model
- * and stores them in Supabase pgvector for similarity search.
- * Mirrors Python services/embedding_service.py.
+ * Generates vector embeddings with Gemini and stores them in Supabase
+ * pgvector for similarity search. All operations are scoped to a user.
+ *
+ * Embeddings produced by a different model than EMBEDDING_MODEL are
+ * considered stale (vectors from different models are not comparable)
+ * and are regenerated in place by createEmbeddingsBatch.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import settings from '../config';
-import { getSupabaseClient } from '../db/supabase';
+import { getSupabaseClient, fetchAllRows, chunk } from '../db/supabase';
+import { geminiClient, EMBEDDING_MODEL, EMBEDDING_DIMENSIONS } from '../ai/geminiClient';
+import { NotFoundError, BadRequestError } from '../utils/errors';
 
 type DbRow = Record<string, unknown>;
 
-let _genAI: GoogleGenerativeAI | null = null;
-
-function getGenAI(): GoogleGenerativeAI {
-  if (_genAI) return _genAI;
-  if (!settings.googleApiKey) {
-    throw new Error('Google API key not configured. Set GOOGLE_API_KEY in your .env file.');
-  }
-  _genAI = new GoogleGenerativeAI(settings.googleApiKey);
-  console.info('✅ Google Generative AI SDK configured');
-  return _genAI;
-}
-
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const genAI = getGenAI();
-
   try {
-    // Use the embedContent method on the embedding model
-    const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-    const result = await model.embedContent(text);
-    const embedding = result.embedding.values;
-
-    // Truncate/pad to 768 dimensions as per pgvector table definition
-    const embedding768 = embedding.slice(0, 768);
-    console.info(`✅ Generated embedding: ${embedding768.length} dims`);
-    return embedding768;
+    return await geminiClient.embedText(text);
   } catch (err) {
     console.error('❌ Failed to generate Gemini embedding:', err);
-    throw new Error(`Gemini embedding generation failed: ${err}`);
+    throw new Error(`Gemini embedding generation failed: ${err instanceof Error ? err.message : err}`);
   }
 }
 
-export async function createEmbeddingForFeedback(feedbackId: string): Promise<DbRow> {
+export function toVectorLiteral(embedding: number[]): string {
+  return `[${embedding.join(',')}]`;
+}
+
+/**
+ * Creates (or refreshes, if stale) the embedding for one feedback item.
+ * Returns the stored row plus `skipped: true` if it was already current.
+ */
+export async function createEmbeddingForFeedback(
+  feedbackId: string,
+  userId?: string,
+): Promise<DbRow & { skipped?: boolean }> {
   const db = getSupabaseClient();
 
-  // Check if embedding already exists
-  const { data: existing } = await db
+  let feedbackQuery = db.from('feedback').select('id, content').eq('id', feedbackId);
+  if (userId) feedbackQuery = feedbackQuery.eq('user_id', userId);
+  const { data: feedbackData } = await feedbackQuery.maybeSingle();
+  if (!feedbackData) throw new NotFoundError(`Feedback not found: ${feedbackId}`);
+
+  const { data: existingRows } = await db
     .from('embeddings')
-    .select('id')
+    .select('id, feedback_id, model, created_at')
     .eq('feedback_id', feedbackId);
+  const existing = (existingRows ?? []) as DbRow[];
 
-  if (existing && existing.length > 0) {
-    console.info(`⏭️  Embedding already exists for feedback ${feedbackId}`);
-    return existing[0] as DbRow;
-  }
-
-  // Fetch the feedback content
-  const { data: feedbackData, error: feedbackError } = await db
-    .from('feedback')
-    .select('id, content')
-    .eq('id', feedbackId)
-    .single();
-
-  if (feedbackError || !feedbackData) throw new Error(`Feedback not found: ${feedbackId}`);
+  const current = existing.find((e) => e['model'] === EMBEDDING_MODEL);
+  if (current) return { ...current, skipped: true };
 
   const content = (feedbackData as DbRow)['content'] as string;
-
-  console.info(`🧠 Generating Gemini embedding for feedback ${feedbackId} (${content.length} chars)`);
   const embedding = await generateEmbedding(content);
+  const row = {
+    feedback_id: feedbackId,
+    embedding: toVectorLiteral(embedding),
+    model: EMBEDDING_MODEL,
+  };
 
-  // Format as pgvector string
-  const vectorStr = `[${embedding.join(',')}]`;
+  if (existing.length > 0) {
+    // Stale embedding from an older model — replace it in place.
+    const { data, error } = await db
+      .from('embeddings')
+      .update(row)
+      .eq('feedback_id', feedbackId)
+      .select('id, feedback_id, model, created_at')
+      .limit(1);
+    if (error || !data || data.length === 0) {
+      throw new Error(`Failed to refresh embedding for ${feedbackId}: ${error?.message}`);
+    }
+    return data[0] as DbRow;
+  }
 
-  console.info(`💾 Sending vector of length ${embedding.length} to DB for feedback ${feedbackId}`);
-
-  const { data: result, error } = await db
+  const { data, error } = await db
     .from('embeddings')
-    .insert({
-      feedback_id: feedbackId,
-      embedding: vectorStr,
-      model: 'text-embedding-004',
-    })
-    .select()
+    .insert(row)
+    .select('id, feedback_id, model, created_at')
     .single();
+  if (error || !data) throw new Error(`Failed to store embedding for ${feedbackId}: ${error?.message}`);
+  return data as DbRow;
+}
 
-  if (error || !result) throw new Error(`Failed to store embedding for ${feedbackId}: ${error?.message}`);
+/** Feedback ids (for the user) that have no embedding from the current model. */
+export async function findFeedbackNeedingEmbedding(userId: string): Promise<string[]> {
+  const db = getSupabaseClient();
 
-  console.info(`✅ Gemini embedding stored for feedback ${feedbackId}`);
-  return result as DbRow;
+  const feedback = await fetchAllRows<DbRow>((from, to) =>
+    db.from('feedback').select('id').eq('user_id', userId).order('id').range(from, to),
+  );
+  const ids = feedback.map((f) => f['id'] as string);
+
+  const current = new Set<string>();
+  for (const part of chunk(ids)) {
+    const { data, error } = await db
+      .from('embeddings')
+      .select('feedback_id')
+      .eq('model', EMBEDDING_MODEL)
+      .in('feedback_id', part);
+    if (error) throw new Error(`Failed to read embeddings: ${error.message}`);
+    for (const e of (data ?? []) as DbRow[]) current.add(e['feedback_id'] as string);
+  }
+
+  return ids.filter((id) => !current.has(id));
 }
 
 export async function createEmbeddingsBatch(
+  userId: string,
   feedbackIds?: string[],
 ): Promise<{ total: number; created: number; skipped: number; errors: DbRow[] }> {
-  const db = getSupabaseClient();
-
-  if (!feedbackIds) {
-    const { data: allFeedback } = await db.from('feedback').select('id');
-    const { data: existingEmbeddings } = await db.from('embeddings').select('feedback_id');
-
-    const existingIds = new Set(
-      (existingEmbeddings ?? []).map((e: DbRow) => e['feedback_id'] as string),
-    );
-    feedbackIds = (allFeedback ?? [])
-      .map((f: DbRow) => f['id'] as string)
-      .filter((id) => !existingIds.has(id));
-  }
-
-  if (feedbackIds.length === 0) {
-    return { total: 0, created: 0, skipped: 0, errors: [] };
-  }
+  const ids = feedbackIds ?? (await findFeedbackNeedingEmbedding(userId));
+  if (ids.length === 0) return { total: 0, created: 0, skipped: 0, errors: [] };
 
   let created = 0;
   let skipped = 0;
   const errors: DbRow[] = [];
 
-  console.info(`🧠 Batch embedding (Gemini): ${feedbackIds.length} items to process`);
+  console.info(`🧠 Batch embedding (${EMBEDDING_MODEL}): ${ids.length} items to process`);
 
-  for (const fid of feedbackIds) {
+  for (const fid of ids) {
     try {
-      const result = await createEmbeddingForFeedback(fid);
-      if (result['id']) {
-        created++;
-      } else {
-        skipped++;
-      }
+      const result = await createEmbeddingForFeedback(fid, userId);
+      if (result.skipped) skipped++;
+      else created++;
     } catch (err) {
       console.error(`Error embedding ${fid}:`, err);
-      errors.push({ feedback_id: fid, error: String(err) });
+      errors.push({ feedback_id: fid, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
-  return { total: feedbackIds.length, created, skipped, errors };
+  return { total: ids.length, created, skipped, errors };
 }
 
 export async function searchSimilar(params: {
+  userId: string;
   text?: string;
   feedbackId?: string;
   matchCount?: number;
   matchThreshold?: number;
 }): Promise<DbRow[]> {
   const db = getSupabaseClient();
-  const { text, feedbackId, matchCount = 10, matchThreshold = 0.5 } = params;
+  const { userId, text, feedbackId, matchCount = 10, matchThreshold = 0.5 } = params;
 
-  let queryEmbedding: number[] | string;
+  let vectorStr: string;
 
   if (text) {
-    queryEmbedding = await generateEmbedding(text);
+    vectorStr = toVectorLiteral(await generateEmbedding(text));
   } else if (feedbackId) {
+    const { data: owned } = await db
+      .from('feedback')
+      .select('id')
+      .eq('id', feedbackId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!owned) throw new NotFoundError(`Feedback not found: ${feedbackId}`);
+
     const { data } = await db
       .from('embeddings')
       .select('embedding')
       .eq('feedback_id', feedbackId)
-      .single();
-
-    if (!data) throw new Error(`No embedding found for feedback ${feedbackId}`);
-    queryEmbedding = (data as DbRow)['embedding'] as string;
+      .eq('model', EMBEDDING_MODEL)
+      .maybeSingle();
+    if (!data) throw new NotFoundError(`No current embedding found for feedback ${feedbackId}`);
+    vectorStr = (data as DbRow)['embedding'] as string;
   } else {
-    throw new Error("Either 'text' or 'feedback_id' must be provided");
+    throw new BadRequestError("Either 'text' or 'feedback_id' must be provided");
   }
-
-  const vectorStr = Array.isArray(queryEmbedding)
-    ? `[${queryEmbedding.join(',')}]`
-    : queryEmbedding;
 
   const { data: results, error } = await db.rpc('match_feedback', {
     query_embedding: vectorStr,
     match_count: matchCount,
     match_threshold: matchThreshold,
+    filter_user_id: userId,
+    filter_model: EMBEDDING_MODEL,
   });
 
   if (error) throw new Error(`Similarity search failed: ${error.message}`);
-  return (results ?? []) as DbRow[];
+  return ((results ?? []) as DbRow[]).filter((r) => r['feedback_id'] !== feedbackId);
 }
 
-export async function getEmbeddingStats(): Promise<DbRow> {
+export async function getEmbeddingStats(userId: string): Promise<DbRow> {
   const db = getSupabaseClient();
 
   const { count: feedbackCount } = await db
     .from('feedback')
-    .select('id', { count: 'exact', head: true });
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
 
-  const { count: embeddingCount } = await db
-    .from('embeddings')
-    .select('id', { count: 'exact', head: true });
-
+  const pending = await findFeedbackNeedingEmbedding(userId);
   const fc = feedbackCount ?? 0;
-  const ec = embeddingCount ?? 0;
 
   return {
     total_feedback: fc,
-    total_embedded: ec,
-    total_unembedded: fc - ec,
-    model: 'text-embedding-004',
-    dimensions: 768,
+    total_embedded: fc - pending.length,
+    total_unembedded: pending.length,
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIMENSIONS,
   };
 }

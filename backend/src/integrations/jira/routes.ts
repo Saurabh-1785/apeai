@@ -1,11 +1,11 @@
 /**
  * ApeAI — Jira Integration Routes
  *
- * POST /publish/jira/:documentId
- * Mirrors Python integrations/jira/routes.py.
+ * POST /publish/jira/:documentId[?integration_id=]
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
+import { requireAuth } from '../../middleware/auth';
 import { getSupabaseClient } from '../../db/supabase';
 import { publishDocument } from '../../services/publishService';
 
@@ -13,42 +13,35 @@ export const jiraRouter = Router();
 
 jiraRouter.post(
   '/jira/:documentId',
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     const { documentId } = req.params;
-    let { integration_id: integrationId } = req.query as Record<string, string | undefined>;
+    let integrationId = req.query['integration_id'] as string | undefined;
 
-    // Auto-resolve the active Jira integration if not specified
-    if (!integrationId) {
-      try {
+    try {
+      // Auto-resolve the caller's own active Jira integration if not specified.
+      if (!integrationId) {
         const db = getSupabaseClient();
         const { data } = await db
           .from('integrations')
           .select('id')
           .eq('type', 'jira')
           .eq('is_active', true)
+          .eq('user_id', req.userId!)
+          .order('created_at', { ascending: false })
           .limit(1);
 
         if (!data || data.length === 0) {
           res.status(400).json({
-            detail:
-              'No active Jira integration configured. Please configure one or supply integration_id.',
+            detail: 'No active Jira integration configured. Add one on the Integrations page.',
           });
           return;
         }
         integrationId = (data[0] as Record<string, string>)['id'];
-      } catch (err) {
-        return next(err);
       }
-    }
 
-    try {
-      const result = await publishDocument(documentId, integrationId!);
-      res.json(result);
+      res.json(await publishDocument(documentId, integrationId, req.userId!));
     } catch (err) {
-      if (err instanceof Error && (err.message.includes('not found') || err.message.includes('Only approved') || err.message.includes('already been published'))) {
-        res.status(400).json({ detail: err.message });
-        return;
-      }
       next(err);
     }
   },

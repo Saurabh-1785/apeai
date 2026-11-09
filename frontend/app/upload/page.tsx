@@ -84,21 +84,21 @@ export default function SignalUploadPage() {
       const res = await api.ingestCSVFeedback(csvFile);
       toast(res.message || `CSV parsed successfully. Ingested ${res.saved || 0} signals!`, 'success');
       
-      // Build mock visual of what CSV stored (normally would be returned or fetched, we represent nicely)
-      const mockResultList = Array.from({ length: Math.min(res.saved || 3, 5) }).map((_, idx) => ({
-        id: `csv-uuid-${idx + 1}`,
-        source: 'csv',
-        author: 'anonymous',
-        content: `CSV Row ${idx + 1} Content ... Saved in database.`,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          submission_type: 'csv_upload',
-          row_number: idx + 1,
-          file_name: csvFile.name
+      // Show the real rows that were just stored (most recent first).
+      let stored: any[] = [];
+      if ((res.saved || 0) > 0) {
+        try {
+          const recent = await api.getRecentFeedbacks(Math.min(res.saved, 5));
+          stored = (recent.feedbacks || []).filter((f: any) => f.source === 'csv');
+        } catch {
+          stored = [];
         }
-      }));
-
-      setBatchResults(mockResultList);
+      }
+      if (res.errors && res.errors.length > 0) {
+        const first = res.errors[0];
+        toast(`${res.errors.length} row(s) skipped. Row ${first.row}: ${first.error}`, 'error');
+      }
+      setBatchResults(stored);
       setLastIngestedResult(null);
       setCsvFile(null);
     } catch (err: any) {

@@ -42,10 +42,10 @@ export default function ProfilePage() {
       avatar_url: avatarUrl || null,
     };
 
+    // upsert: the row may not exist yet if the user skipped "complete profile"
     const { error } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+      .upsert({ id: user.id, email: user.email, ...updates });
 
     if (error) {
       setMessage({ type: 'error', text: error.message });
@@ -65,9 +65,13 @@ export default function ProfilePage() {
         throw new Error('You must select an image to upload.');
       }
 
+      if (!user) throw new Error('You must be signed in to upload an avatar.');
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user?.id}-${Math.random()}.${fileExt}`;
+      if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
+      if (file.size > 2 * 1024 * 1024) throw new Error('Avatar must be 2 MB or smaller.');
+      const fileExt = (file.name.split('.').pop() || 'png').toLowerCase();
+      // Storage policy only allows writes under "<user id>/"
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
       // Assuming there's a public bucket named 'avatars'
       // If it doesn't exist, this might fail, so we might fallback to Base64 or external links
@@ -76,17 +80,7 @@ export default function ProfilePage() {
         .upload(filePath, file);
 
       if (uploadError) {
-        // Fallback to base64 if bucket doesn't exist or RLS blocks
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-          setAvatarUrl(reader.result as string);
-          setUploading(false);
-        };
-        reader.onerror = () => {
-          throw uploadError;
-        };
-        return;
+        throw new Error(`Avatar upload failed: ${uploadError.message}`);
       }
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);

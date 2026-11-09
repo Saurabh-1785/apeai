@@ -6,7 +6,9 @@
  */
 
 import { getSupabaseClient } from '../db/supabase';
-import { getDocument, createTicketLink } from './documentService';
+import { createTicketLink } from './documentService';
+import { getOwnedDocument, getOwnedIntegration } from './ownership';
+import { BadRequestError, ConflictError, UpstreamError } from '../utils/errors';
 
 type DbRow = Record<string, unknown>;
 
@@ -85,88 +87,103 @@ export function toUniversalFormat(doc: DbRow): DbRow {
   };
 }
 
+/** Integration types that have a working publisher. */
+export const SUPPORTED_PUBLISH_TYPES = ['jira'];
+
+/**
+ * Publishes an approved document to an integration owned by the user.
+ *
+ * Failure handling:
+ *   - If the external API call fails, nothing was created; the document
+ *     stays 'approved' and can be retried.
+ *   - If the external ticket WAS created but recording the link fails, the
+ *     document is still marked 'published' (never reverted), so a retry
+ *     cannot create a duplicate ticket. The error includes the ticket id.
+ */
 export async function publishDocument(
   documentId: string,
   integrationId: string,
+  userId: string,
 ): Promise<DbRow> {
   const db = getSupabaseClient();
 
-  // 1. Fetch document
-  const doc = await getDocument(documentId);
+  const doc = await getOwnedDocument(documentId, userId);
+  const integration = await getOwnedIntegration(integrationId, userId);
 
-  // 2. Fetch integration
-  const { data: intData, error: intError } = await db
-    .from('integrations')
-    .select('*')
-    .eq('id', integrationId)
-    .single();
-  if (intError || !intData) throw new Error(`Integration not found: ${integrationId}`);
-  const integration = intData as DbRow;
-
-  // 3. Prevent duplicate publishing
-  const { data: existing } = await db
-    .from('ticket_links')
-    .select('*')
-    .eq('document_id', documentId)
-    .eq('integration_id', integrationId);
-  if (existing && existing.length > 0) {
-    throw new Error(
-      `Document ${documentId} has already been published to integration ${integrationId}`,
-    );
+  if (integration['is_active'] === false) {
+    throw new BadRequestError(`Integration ${integrationId} is inactive`);
   }
 
-  // 4. Must be approved or published
-  if (doc['status'] !== 'approved' && doc['status'] !== 'published') {
-    throw new Error(
-      `Only approved or published documents can be published. Current status: ${doc['status']}`,
+  const { data: links, error: linkErr } = await db
+    .from('ticket_links')
+    .select('integration_id')
+    .eq('document_id', documentId);
+  if (linkErr) throw new Error(`Failed to check existing ticket links: ${linkErr.message}`);
+  const existingLinks = (links ?? []) as DbRow[];
+
+  if (existingLinks.some((l) => l['integration_id'] === integrationId)) {
+    throw new ConflictError(`Document ${documentId} has already been published to this integration`);
+  }
+
+  // 'published' is allowed only when it was published to a *different*
+  // integration (and that link exists). A 'published' doc with no links
+  // means an earlier publish created a ticket but failed to record it.
+  const status = doc['status'] as string;
+  if (status === 'published' && existingLinks.length === 0) {
+    throw new ConflictError(
+      'Document is marked published but has no ticket link recorded. Check your tracker for an existing ticket before republishing.',
     );
+  }
+  if (status !== 'approved' && status !== 'published') {
+    throw new BadRequestError(`Only approved documents can be published. Current status: ${status}`);
+  }
+
+  const intType = integration['type'] as string;
+  if (!SUPPORTED_PUBLISH_TYPES.includes(intType)) {
+    throw new BadRequestError(`Publishing to ${intType} is not supported yet`);
   }
 
   console.info(`🔄 Publishing document ${documentId} to integration ${integrationId}...`);
 
+  // Step 1: create the external ticket. On failure nothing exists externally.
+  let result: { external_id: string; external_url: string; external_status: string };
   try {
-    const universalTask = toUniversalFormat(doc);
-    const intType = integration['type'] as string;
-    let result: DbRow;
+    const { publishToJira } = await import('../integrations/jira/client');
+    result = await publishToJira(toUniversalFormat(doc), integration);
+  } catch (err) {
+    console.error(`❌ Failed to publish document ${documentId}:`, err);
+    throw new UpstreamError(err instanceof Error ? err.message : String(err));
+  }
 
-    if (intType === 'jira') {
-      const { publishToJira } = await import('../integrations/jira/client');
-      result = await publishToJira(universalTask, integration);
-    } else if (intType === 'github' || intType === 'linear') {
-      throw new Error(`${intType} integration is not yet implemented`);
-    } else {
-      throw new Error(`Unsupported integration type: ${intType}`);
-    }
+  // Step 2: the ticket exists — mark published first so it can never be re-sent.
+  await db.from('documents').update({ status: 'published' }).eq('id', documentId);
 
-    // Create ticket link
+  // Step 3: record the link.
+  try {
     const link = await createTicketLink({
       documentId,
       integrationId,
-      externalId: result['external_id'] as string,
-      externalUrl: result['external_url'] as string | undefined,
-      externalStatus: (result['external_status'] as string | undefined) ?? 'Open',
+      externalId: result.external_id,
+      externalUrl: result.external_url,
+      externalStatus: result.external_status ?? 'Open',
     });
-
-    // Transition to published
-    await db.from('documents').update({ status: 'published' }).eq('id', documentId);
-    console.info(
-      `✅ Successfully published document ${documentId} as ticket ${result['external_id']}`,
-    );
-
+    console.info(`✅ Published document ${documentId} as ticket ${result.external_id}`);
     return {
       success: true,
       ticket_link: link,
-      external_url: result['external_url'],
-      external_id: result['external_id'],
+      external_url: result.external_url,
+      external_id: result.external_id,
     };
   } catch (err) {
-    console.error(`❌ Failed to publish document ${documentId}:`, err);
-    // Revert to approved so user can retry
-    try {
-      await db.from('documents').update({ status: 'approved' }).eq('id', documentId);
-    } catch (re) {
-      console.error('Failed to reset document status:', re);
-    }
-    throw err;
+    console.error(`⚠️ Ticket ${result.external_id} created but link record failed:`, err);
+    return {
+      success: true,
+      ticket_link: null,
+      external_url: result.external_url,
+      external_id: result.external_id,
+      warning: `Ticket ${result.external_id} was created but its link could not be saved: ${
+        err instanceof Error ? err.message : err
+      }`,
+    };
   }
 }

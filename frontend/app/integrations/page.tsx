@@ -5,6 +5,7 @@ import { api } from '@/services/api';
 import { Integration } from '@/types/models';
 import { useToast } from '@/components/ui/ToastProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/components/AuthContext';
 import { 
   Plus, 
   Trash2, 
@@ -15,6 +16,7 @@ import {
 
 export default function IntegrationsPage() {
   const { toast } = useToast();
+  const { session, loading: authLoading } = useAuth();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +44,16 @@ export default function IntegrationsPage() {
   };
 
   useEffect(() => {
-    loadIntegrations();
-  }, []);
+    if (authLoading) return;
+    if (session) loadIntegrations();
+    else setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, session]);
 
   const handleConnect = async (type: 'jira') => {
     setSubmitting(type);
     try {
-      let payload: Partial<Integration> = {
+      const payload: Partial<Integration> = {
         type,
         name: `Active ${type.toUpperCase()} pipeline`,
         is_active: true,
@@ -58,10 +63,17 @@ export default function IntegrationsPage() {
         if (!jiraUrl || !jiraEmail || !jiraToken || !jiraProject) {
           throw new Error('All fields are required to bind Jira Cloud.');
         }
-        payload.api_url = jiraUrl;
-        payload.api_key = jiraToken;
-        payload.project_id = jiraProject;
-        payload.config = { email: jiraEmail, dry_run: jiraDryRun };
+        let parsedUrl: URL;
+        try {
+          parsedUrl = new URL(jiraUrl.trim());
+        } catch {
+          throw new Error('Jira URL must be a full URL, e.g. https://your-team.atlassian.net');
+        }
+        if (parsedUrl.protocol !== 'https:') throw new Error('Jira URL must use https://');
+        payload.api_url = parsedUrl.origin;
+        payload.project_id = jiraProject.trim().toUpperCase();
+        payload.api_key = jiraToken.trim();
+        payload.config = { email: jiraEmail.trim(), dry_run: jiraDryRun };
       }
 
       await api.createIntegration(payload);

@@ -20,6 +20,8 @@ import {
   ObservabilityAlertInput,
 } from '../types/feedback';
 
+const MAX_CSV_CONTENT_LENGTH = 50_000;
+
 // ─── Existing Normalizers ─────────────────────────────────────
 
 export function normalizeManual(data: ManualFeedbackInput): FeedbackItem {
@@ -38,31 +40,49 @@ export function normalizeCsvRow(
   row: Record<string, string | undefined>,
   rowNumber: number,
 ): FeedbackItem {
-  const content = (row['content'] ?? '').trim();
-  if (!content) {
-    throw new Error(`Row ${rowNumber}: 'content' column is empty or missing`);
+  // Header names are matched case-insensitively.
+  const get = (...names: string[]): string | undefined => {
+    for (const [key, value] of Object.entries(row)) {
+      if (names.includes(key.trim().toLowerCase())) return value;
+    }
+    return undefined;
+  };
+
+  const content = (get('content') ?? '').trim();
+  if (!content) throw new Error(`Row ${rowNumber}: 'content' column is empty or missing`);
+  if (content.length > MAX_CSV_CONTENT_LENGTH) {
+    throw new Error(`Row ${rowNumber}: 'content' exceeds ${MAX_CSV_CONTENT_LENGTH} characters`);
   }
 
-  const author = (row['author'] ?? 'anonymous').trim() || 'anonymous';
+  const author = (get('author') ?? '').trim() || 'anonymous';
 
-  // Store any extra columns in metadata
-  const knownColumns = new Set(['content', 'author', 'source']);
+  // Use the row's own date if it parses; otherwise the upload time.
+  const rawDate = (get('date', 'timestamp', 'created_at') ?? '').trim();
+  const parsedDate = rawDate ? new Date(rawDate) : null;
+  const timestamp =
+    parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : new Date().toISOString();
+
+  // Keep the spreadsheet's own source label (e.g. "support_ticket") in metadata;
+  // the feedback `source` stays 'csv' so the channel is always known.
+  const originalSource = (get('source') ?? '').trim();
+
+  const known = new Set(['content', 'author', 'source', 'date', 'timestamp', 'created_at']);
   const extraData: Record<string, string> = {};
   for (const [key, value] of Object.entries(row)) {
-    if (!knownColumns.has(key) && value) {
-      extraData[key] = value;
-    }
+    if (!known.has(key.trim().toLowerCase()) && value) extraData[key] = value;
   }
 
   return {
     source: 'csv',
     author,
     content,
-    timestamp: new Date().toISOString(),
+    timestamp,
     metadata: {
+      ...extraData,
       submission_type: 'csv_upload',
       row_number: rowNumber,
-      ...extraData,
+      ...(originalSource ? { original_source: originalSource } : {}),
+      ...(rawDate ? { original_date: rawDate } : {}),
     },
   };
 }
@@ -82,7 +102,7 @@ export function normalizeAppStoreReview(data: AppStoreReviewInput): FeedbackItem
   return {
     source,
     author: (data.author || 'anonymous').trim() || 'anonymous',
-    content: `${titlePrefix}${data.content}`.trim(),
+    content: `${titlePrefix}${data.content ?? ''}`.trim(),
     timestamp: data.review_date || new Date().toISOString(),
     external_id: data.review_id,
     metadata: {
@@ -103,10 +123,10 @@ export function normalizeAppStoreReview(data: AppStoreReviewInput): FeedbackItem
  * Preserves: subreddit, upvotes, comments_count, post_url.
  */
 export function normalizeRedditPost(data: RedditPostInput): FeedbackItem {
-  // Combine title + body for richer context
-  const content = data.content
-    ? `${data.title}\n\n${data.content}`.trim()
-    : data.title.trim();
+  // Combine title + body for richer context (either may be absent).
+  const title = (data.title ?? '').trim();
+  const body = (data.content ?? '').trim();
+  const content = title && body ? `${title}\n\n${body}` : title || body;
 
   return {
     source: 'reddit',
@@ -140,7 +160,7 @@ export function normalizeSupportTicket(data: SupportTicketWebhookInput): Feedbac
   return {
     source,
     author: (data.author || 'anonymous').trim() || 'anonymous',
-    content: `${subjectPrefix}${data.content}`.trim(),
+    content: `${subjectPrefix}${data.content ?? ''}`.trim(),
     timestamp: data.created_at || new Date().toISOString(),
     external_id: data.ticket_id,
     metadata: {
@@ -161,21 +181,22 @@ export function normalizeSupportTicket(data: SupportTicketWebhookInput): Feedbac
  * Preserves: meeting_title, participants, duration.
  */
 export function normalizeTranscript(data: TranscriptWebhookInput): FeedbackItem {
-  const participantsLabel = data.participants.length > 0
-    ? data.participants.join(', ')
-    : 'unknown';
+  const participants = Array.isArray(data.participants)
+    ? data.participants.filter((p) => typeof p === 'string' && p.trim())
+    : [];
+  const participantsLabel = participants.length > 0 ? participants.join(', ') : 'unknown';
 
   return {
     source: 'transcript',
     author: participantsLabel,
-    content: data.content.trim(),
+    content: (data.content ?? '').trim(),
     timestamp: data.meeting_date || new Date().toISOString(),
     external_id: data.transcript_id,
     metadata: {
       submission_type: 'meeting_transcript',
       platform: data.platform,
       meeting_title: data.meeting_title,
-      participants: data.participants,
+      participants,
       duration_seconds: data.duration_seconds || null,
       transcript_id: data.transcript_id,
     },
@@ -191,7 +212,7 @@ export function normalizeTranscript(data: TranscriptWebhookInput): FeedbackItem 
 export function normalizeObservabilityAlert(data: ObservabilityAlertInput): FeedbackItem {
   const source = data.platform === 'posthog' ? 'posthog' : 'sentry';
   // Include title + content + truncated stack trace for context
-  let fullContent = `${data.title}: ${data.content}`;
+  let fullContent = [data.title, data.content].filter(Boolean).join(': ');
   if (data.stack_trace) {
     // Keep first 2000 chars of stack trace
     const truncatedTrace = data.stack_trace.slice(0, 2000);

@@ -27,26 +27,34 @@ if (fs.existsSync(envPath)) {
 }
 
 /** @type {import('next').NextConfig} */
+// SECURITY: only *public* values may be exposed to the browser bundle.
+// Never fall back to the backend's SUPABASE_KEY here — it is the
+// service_role key and would be inlined into client JavaScript.
+const BACKEND_URL = (
+  process.env.BACKEND_URL ||
+  envVars.BACKEND_URL ||
+  'http://127.0.0.1:8000'
+).replace(/\/$/, '');
+
 const nextConfig = {
   reactStrictMode: true,
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || envVars.NEXT_PUBLIC_API_URL || '/api',
-    NEXT_PUBLIC_SUPABASE_URL: 
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 
-      envVars.NEXT_PUBLIC_SUPABASE_URL || 
-      envVars.SUPABASE_URL || 
+    NEXT_PUBLIC_SUPABASE_URL:
+      process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      envVars.NEXT_PUBLIC_SUPABASE_URL ||
+      envVars.SUPABASE_URL ||
       '',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-      envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-      envVars.SUPABASE_KEY || 
+    NEXT_PUBLIC_SUPABASE_ANON_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
       '',
   },
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:8000/:path*',
+        destination: `${BACKEND_URL}/:path*`,
       },
     ]
   },

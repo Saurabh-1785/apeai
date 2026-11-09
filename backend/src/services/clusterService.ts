@@ -2,88 +2,112 @@
  * ApeAI — Cluster Service
  *
  * Manages feedback clusters — groups of related feedback items.
- * Mirrors Python services/cluster_service.py exactly.
+ * Functions that take a `userId` scope their query to that user; the
+ * unscoped helpers are for internal callers that already verified ownership.
  */
 
-import { getSupabaseClient } from '../db/supabase';
+import { getSupabaseClient, fetchAllRows } from '../db/supabase';
+import { NotFoundError, BadRequestError } from '../utils/errors';
 
 type DbRow = Record<string, unknown>;
 
+export const VALID_CLUSTER_STATUSES = [
+  'new',
+  'clustered',
+  'brd_generated',
+  'prd_generated',
+  'stories_generated',
+  'tasks_generated',
+  'approved',
+  'tickets_created',
+  'archived',
+];
+
 export async function createCluster(params: {
   title: string;
+  userId: string;
   summary?: string;
   feedbackIds?: string[];
+  similarityScores?: Array<number | null>;
   confidenceScore?: number;
-  userId?: string;
 }): Promise<DbRow> {
   const db = getSupabaseClient();
-  const { title, summary, feedbackIds, confidenceScore = 0.0, userId } = params;
+  const { title, summary, feedbackIds, similarityScores, confidenceScore = 0.0, userId } = params;
 
-  const clusterData: DbRow = {
-    title,
-    summary: summary ?? null,
-    confidence_score: confidenceScore,
-    feedback_count: feedbackIds?.length ?? 0,
-    status: 'new',
-  };
-  if (userId) clusterData['user_id'] = userId;
-
-  const { data, error } = await db.from('clusters').insert(clusterData).select().single();
+  const { data, error } = await db
+    .from('clusters')
+    .insert({
+      title,
+      summary: summary ?? null,
+      confidence_score: confidenceScore,
+      feedback_count: feedbackIds?.length ?? 0,
+      status: 'new',
+      user_id: userId,
+    })
+    .select()
+    .single();
   if (error || !data) throw new Error(`Failed to create cluster: ${error?.message}`);
 
   const cluster = data as DbRow;
   const clusterId = cluster['id'] as string;
-  console.info(`✅ Cluster created: ${clusterId} — '${title}'`);
 
   if (feedbackIds && feedbackIds.length > 0) {
-    const links = feedbackIds.map((fid) => ({ cluster_id: clusterId, feedback_id: fid }));
-    await db.from('cluster_feedback').insert(links);
-    console.info(`   Linked ${feedbackIds.length} feedback items`);
+    const links = feedbackIds.map((fid, i) => ({
+      cluster_id: clusterId,
+      feedback_id: fid,
+      similarity_score: similarityScores?.[i] ?? null,
+    }));
+    const { error: linkError } = await db.from('cluster_feedback').insert(links);
+    if (linkError) {
+      // Don't leave an empty cluster behind.
+      await db.from('clusters').delete().eq('id', clusterId);
+      throw new Error(`Failed to link feedback to new cluster: ${linkError.message}`);
+    }
   }
 
+  console.info(`✅ Cluster created: ${clusterId} — '${title}' (${feedbackIds?.length ?? 0} items)`);
   return cluster;
 }
 
 export async function getCluster(
   clusterId: string,
   includeFeedback = true,
+  userId?: string,
 ): Promise<DbRow> {
   const db = getSupabaseClient();
 
-  const { data, error } = await db
-    .from('clusters')
-    .select('*')
-    .eq('id', clusterId)
-    .single();
-
-  if (error || !data) throw new Error(`Cluster not found: ${clusterId}`);
+  let query = db.from('clusters').select('*').eq('id', clusterId);
+  if (userId) query = query.eq('user_id', userId);
+  const { data, error } = await query.maybeSingle();
+  if (error || !data) throw new NotFoundError(`Cluster not found: ${clusterId}`);
 
   const cluster = data as DbRow;
 
   if (includeFeedback) {
-    const { data: links } = await db
-      .from('cluster_feedback')
-      .select('feedback_id, similarity_score')
-      .eq('cluster_id', clusterId);
+    const links = await fetchAllRows<DbRow>((from, to) =>
+      db
+        .from('cluster_feedback')
+        .select('feedback_id, similarity_score')
+        .eq('cluster_id', clusterId)
+        .range(from, to),
+    );
 
     const feedbackItems: DbRow[] = [];
-    if (links && links.length > 0) {
-      const fids = links.map((l: DbRow) => l['feedback_id']);
-      const scores: Record<string, unknown> = {};
-      for (const l of links as DbRow[]) {
-        scores[l['feedback_id'] as string] = l['similarity_score'];
-      }
+    if (links.length > 0) {
+      const scores = new Map<string, unknown>();
+      for (const l of links) scores.set(l['feedback_id'] as string, l['similarity_score']);
 
-      const { data: feedbackData } = await db
-        .from('feedback')
-        .select('*')
-        .in('id', fids);
-
-      for (const f of (feedbackData ?? []) as DbRow[]) {
-        feedbackItems.push({ ...f, similarity_score: scores[f['id'] as string] });
+      const ids = [...scores.keys()];
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data: feedbackData } = await db
+          .from('feedback')
+          .select('*')
+          .in('id', ids.slice(i, i + 200));
+        for (const f of (feedbackData ?? []) as DbRow[]) {
+          feedbackItems.push({ ...f, similarity_score: scores.get(f['id'] as string) ?? null });
+        }
       }
     }
-
     cluster['feedback_items'] = feedbackItems;
   }
 
@@ -91,8 +115,8 @@ export async function getCluster(
 }
 
 export async function listClusters(params: {
+  userId: string;
   status?: string;
-  userId?: string;
   limit?: number;
   offset?: number;
 }): Promise<{ clusters: DbRow[]; total: number }> {
@@ -102,139 +126,140 @@ export async function listClusters(params: {
   let query = db
     .from('clusters')
     .select('*', { count: 'exact' })
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (status) query = query.eq('status', status);
-  if (userId) query = query.eq('user_id', userId);
 
   const { data, error, count } = await query;
   if (error) throw new Error(`Failed to list clusters: ${error.message}`);
 
-  return {
-    clusters: (data ?? []) as DbRow[],
-    total: count ?? (data ?? []).length,
-  };
+  return { clusters: (data ?? []) as DbRow[], total: count ?? (data ?? []).length };
 }
 
+/** Internal update — caller must have verified ownership. */
 export async function updateCluster(
   clusterId: string,
-  updates: {
-    title?: string;
-    summary?: string;
-    status?: string;
-    confidenceScore?: number;
-  },
+  updates: { title?: string; summary?: string; status?: string; confidenceScore?: number },
 ): Promise<DbRow> {
   const db = getSupabaseClient();
   const updateData: DbRow = {};
 
   if (updates.title !== undefined) updateData['title'] = updates.title;
   if (updates.summary !== undefined) updateData['summary'] = updates.summary;
-  if (updates.status !== undefined) updateData['status'] = updates.status;
+  if (updates.status !== undefined) {
+    if (!VALID_CLUSTER_STATUSES.includes(updates.status)) {
+      throw new BadRequestError(`Invalid cluster status: ${updates.status}`);
+    }
+    updateData['status'] = updates.status;
+  }
   if (updates.confidenceScore !== undefined) updateData['confidence_score'] = updates.confidenceScore;
 
-  if (Object.keys(updateData).length === 0) throw new Error('No fields to update');
+  if (Object.keys(updateData).length === 0) throw new BadRequestError('No fields to update');
 
   const { data, error } = await db
     .from('clusters')
     .update(updateData)
     .eq('id', clusterId)
     .select()
-    .single();
+    .maybeSingle();
 
-  if (error || !data) throw new Error(`Cluster not found: ${clusterId}`);
-  console.info(`✅ Cluster updated: ${clusterId}`);
+  if (error || !data) throw new NotFoundError(`Cluster not found: ${clusterId}`);
   return data as DbRow;
 }
 
-export async function deleteCluster(clusterId: string): Promise<void> {
+export async function deleteCluster(clusterId: string, userId: string): Promise<void> {
   const db = getSupabaseClient();
-
   const { data, error } = await db
     .from('clusters')
     .delete()
     .eq('id', clusterId)
-    .select();
+    .eq('user_id', userId)
+    .select('id');
 
   if (error) throw new Error(`Failed to delete cluster: ${error.message}`);
-  if (!data || (data as DbRow[]).length === 0) throw new Error(`Cluster not found: ${clusterId}`);
-  console.info(`🗑️  Cluster deleted: ${clusterId}`);
+  if (!data || data.length === 0) throw new NotFoundError(`Cluster not found: ${clusterId}`);
 }
 
+/** Recounts links and stores feedback_count. Returns the new count. */
+export async function refreshClusterCount(clusterId: string): Promise<number> {
+  const db = getSupabaseClient();
+  const { count, error } = await db
+    .from('cluster_feedback')
+    .select('id', { count: 'exact', head: true })
+    .eq('cluster_id', clusterId);
+  if (error) throw new Error(`Failed to count cluster feedback: ${error.message}`);
+  const n = count ?? 0;
+  await db.from('clusters').update({ feedback_count: n }).eq('id', clusterId);
+  return n;
+}
+
+/** Internal — caller must have verified ownership of cluster and feedback. */
 export async function addFeedbackToCluster(
   clusterId: string,
   feedbackIds: string[],
-  similarityScores?: number[],
+  similarityScores?: Array<number | null>,
 ): Promise<{ added: number; total_in_cluster: number }> {
   const db = getSupabaseClient();
 
-  const links = feedbackIds.map((fid, i) => ({
-    cluster_id: clusterId,
-    feedback_id: fid,
-    similarity_score: similarityScores?.[i] ?? null,
-  }));
-
-  const { data } = await db.from('cluster_feedback').insert(links).select();
-
-  const { count } = await db
+  // Skip feedback already linked to this cluster.
+  const { data: existing } = await db
     .from('cluster_feedback')
-    .select('id', { count: 'exact' })
-    .eq('cluster_id', clusterId);
+    .select('feedback_id')
+    .eq('cluster_id', clusterId)
+    .in('feedback_id', feedbackIds);
+  const already = new Set(((existing ?? []) as DbRow[]).map((e) => e['feedback_id'] as string));
 
-  const newCount = count ?? 0;
-  await db.from('clusters').update({ feedback_count: newCount }).eq('id', clusterId);
+  const links = feedbackIds
+    .map((fid, i) => ({
+      cluster_id: clusterId,
+      feedback_id: fid,
+      similarity_score: similarityScores?.[i] ?? null,
+    }))
+    .filter((l) => !already.has(l.feedback_id));
 
-  console.info(`✅ Added ${feedbackIds.length} items to cluster ${clusterId}`);
-  return { added: (data ?? []).length, total_in_cluster: newCount };
+  let added = 0;
+  if (links.length > 0) {
+    const { data, error } = await db.from('cluster_feedback').insert(links).select('id');
+    if (error) throw new Error(`Failed to add feedback to cluster: ${error.message}`);
+    added = (data ?? []).length;
+  }
+
+  const total = await refreshClusterCount(clusterId);
+  return { added, total_in_cluster: total };
 }
 
+/** Internal — caller must have verified ownership. */
 export async function removeFeedbackFromCluster(
   clusterId: string,
   feedbackIds: string[],
 ): Promise<{ removed: number; total_in_cluster: number }> {
   const db = getSupabaseClient();
-
-  for (const fid of feedbackIds) {
-    await db
-      .from('cluster_feedback')
-      .delete()
-      .eq('cluster_id', clusterId)
-      .eq('feedback_id', fid);
-  }
-
-  const { count } = await db
+  const { data, error } = await db
     .from('cluster_feedback')
-    .select('id', { count: 'exact' })
-    .eq('cluster_id', clusterId);
+    .delete()
+    .eq('cluster_id', clusterId)
+    .in('feedback_id', feedbackIds)
+    .select('id');
+  if (error) throw new Error(`Failed to remove feedback from cluster: ${error.message}`);
 
-  const newCount = count ?? 0;
-  await db.from('clusters').update({ feedback_count: newCount }).eq('id', clusterId);
-
-  console.info(`🗑️  Removed ${feedbackIds.length} items from cluster ${clusterId}`);
-  return { removed: feedbackIds.length, total_in_cluster: newCount };
+  const total = await refreshClusterCount(clusterId);
+  return { removed: (data ?? []).length, total_in_cluster: total };
 }
 
 export async function getClusterStats(
-  userId?: string,
+  userId: string,
 ): Promise<{ total: number; by_status: Record<string, number> }> {
   const db = getSupabaseClient();
-
-  let query = db.from('clusters').select('status');
-  if (userId) query = query.eq('user_id', userId);
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Failed to get cluster stats:', error);
-    return { total: 0, by_status: {} };
-  }
+  const rows = await fetchAllRows<DbRow>((from, to) =>
+    db.from('clusters').select('status').eq('user_id', userId).range(from, to),
+  );
 
   const byStatus: Record<string, number> = {};
-  for (const row of (data ?? []) as DbRow[]) {
+  for (const row of rows) {
     const s = (row['status'] as string) ?? 'unknown';
     byStatus[s] = (byStatus[s] ?? 0) + 1;
   }
-
-  return { total: (data ?? []).length, by_status: byStatus };
+  return { total: rows.length, by_status: byStatus };
 }

@@ -13,11 +13,10 @@
  *   npm run dev
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import settings from './config';
 import { checkSupabaseConnection } from './db/supabase';
-import { getFeedbackStats } from './services/saveFeedback';
 import { errorHandler } from './middleware/errorHandler';
 
 // ─── Route Imports ────────────────────────────────────────────
@@ -89,6 +88,7 @@ app.get('/', (_req: Request, res: Response) => {
         manual_feedback: 'POST /feedback/manual',
         csv_upload: 'POST /feedback/csv',
         stats: 'GET /feedback/stats',
+        recent: 'GET /feedback/recent',
         appstore: 'POST /api/ingestion/appstore',
         reddit: 'POST /api/ingestion/reddit',
         support_webhook: 'POST /api/ingestion/webhooks/support',
@@ -120,18 +120,6 @@ app.get('/health', async (_req: Request, res: Response) => {
     supabase: supabaseStatus,
     version: '0.2.0',
   });
-});
-
-app.get('/feedback/stats', async (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    const stats = await getFeedbackStats();
-    res.json({
-      total: stats.total,
-      by_source: stats.by_source,
-    });
-  } catch (err) {
-    next(err);
-  }
 });
 
 // ─── Layer 1 Routes (Ingestion) ───────────────────────────────

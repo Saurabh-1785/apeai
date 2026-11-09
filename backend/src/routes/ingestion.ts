@@ -37,7 +37,7 @@ import { getMockSentryIssues, getMockPostHogEvents, getSentryWebhookSecret } fro
 import { getMockTranscripts, getTranscriptWebhookSecret } from '../services/transcriptStorage';
 
 // Persistence
-import { saveFeedback, saveFeedbackBatch } from '../services/saveFeedback';
+import { saveFeedback, saveFeedbackBatchDeduped } from '../services/saveFeedback';
 
 // Scheduler
 import { getSchedulerStatus } from '../services/scheduler';
@@ -99,12 +99,13 @@ ingestionRouter.post(
         return;
       }
 
-      const saved = await saveFeedbackBatch(feedbackItems);
+      const { saved, skipped } = await saveFeedbackBatchDeduped(feedbackItems);
 
       res.json({
         source: 'appstore',
         total: reviews.length,
         saved: saved.length,
+        skipped_duplicates: skipped,
         errors,
         message: `Successfully ingested ${saved.length} app store review(s)`,
       });
@@ -157,12 +158,13 @@ ingestionRouter.post(
         return;
       }
 
-      const saved = await saveFeedbackBatch(feedbackItems);
+      const { saved, skipped } = await saveFeedbackBatchDeduped(feedbackItems);
 
       res.json({
         source: 'reddit',
         total: posts.length,
         saved: saved.length,
+        skipped_duplicates: skipped,
         errors,
         message: `Successfully ingested ${saved.length} Reddit post(s)`,
       });
@@ -351,14 +353,19 @@ ingestionRouter.post(
         item.userId = req.userId;
       });
 
-      const saved = await saveFeedbackBatch(feedbackItems);
+      const { saved, skipped } = await saveFeedbackBatchDeduped(feedbackItems);
 
       res.json({
         source,
         simulated: true,
         total: feedbackItems.length,
         saved: saved.length,
-        message: `Simulated ${saved.length} ${source} feedback item(s) ingested successfully`,
+        skipped_duplicates: skipped,
+        message:
+          saved.length === 0 && skipped > 0
+            ? `All ${skipped} simulated ${source} item(s) were already ingested`
+            : `Simulated ${saved.length} ${source} feedback item(s) ingested` +
+              (skipped ? ` (${skipped} duplicate(s) skipped)` : ''),
       });
     } catch (err) {
       next(err);
