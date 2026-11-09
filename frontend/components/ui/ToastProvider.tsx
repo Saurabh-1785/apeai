@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 interface Toast {
   id: string;
@@ -15,6 +15,12 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+const ICON = {
+  success: { Icon: CheckCircle2, className: 'text-success' },
+  error: { Icon: AlertCircle, className: 'text-danger' },
+  info: { Icon: Info, className: 'text-ink-3' },
+};
+
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -22,10 +28,10 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
 
-    // Auto-remove toast after 4 seconds
+    // Auto-remove toast after 4 seconds (errors stay a little longer)
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
+    }, type === 'error' ? 6000 : 4000);
   }, []);
 
   const removeToast = (id: string) => {
@@ -35,31 +41,28 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      {/* Toast rendering portal container */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none px-4 sm:px-0">
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
+      >
         {toasts.map((t) => {
-          let bg = 'bg-slate-800 text-white';
-          let Icon = Info;
-          if (t.type === 'success') {
-            bg = 'bg-emerald-600 text-white';
-            Icon = CheckCircle;
-          } else if (t.type === 'error') {
-            bg = 'bg-rose-600 text-white';
-            Icon = AlertCircle;
-          }
-
+          const { Icon, className } = ICON[t.type];
           return (
             <div
               key={t.id}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg pointer-events-auto transform transition-all duration-300 translate-y-0 opacity-100 ${bg}`}
+              role={t.type === 'error' ? 'alert' : 'status'}
+              className="card pointer-events-auto flex items-start gap-3 px-4 py-3 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.35)]"
+              style={{ animation: 'app-enter 200ms var(--ease-out) both' }}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <p className="text-sm font-medium flex-1">{t.message}</p>
+              <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${className}`} aria-hidden />
+              <p className="flex-1 text-[14px] leading-snug text-ink">{t.message}</p>
               <button
+                type="button"
                 onClick={() => removeToast(t.id)}
-                className="hover:opacity-75 p-0.5 rounded-full hover:bg-black/10 transition-colors"
+                aria-label="Dismiss notification"
+                className="-mr-1 rounded-md p-1 text-ink-3 transition-colors hover:bg-stone hover:text-ink"
               >
-                <X className="w-4 h-4" />
+                <X className="h-3.5 w-3.5" aria-hidden />
               </button>
             </div>
           );

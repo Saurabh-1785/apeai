@@ -6,13 +6,16 @@ import { Integration } from '@/types/models';
 import { useToast } from '@/components/ui/ToastProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthContext';
-import { 
-  Plus, 
-  Trash2, 
-  Loader2, 
-  AlertTriangle,
-  CheckCircle2
-} from 'lucide-react';
+import { LoadingState, PageHeader } from '@/components/app/primitives';
+import { Loader2, AlertTriangle, Check } from 'lucide-react';
+
+function TrackerMark({ letter, className }: { letter: string; className: string }) {
+  return (
+    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-display text-[22px] leading-none ${className}`}>
+      {letter}
+    </span>
+  );
+}
 
 export default function IntegrationsPage() {
   const { toast } = useToast();
@@ -23,7 +26,7 @@ export default function IntegrationsPage() {
 
   // Form states
   const [submitting, setSubmitting] = useState<string | null>(null);
-  
+
   // Jira Form
   const [jiraUrl, setJiraUrl] = useState('');
   const [jiraEmail, setJiraEmail] = useState('');
@@ -77,8 +80,8 @@ export default function IntegrationsPage() {
       }
 
       await api.createIntegration(payload);
-      toast(`Successfully connected ${type.toUpperCase()}!`, 'success');
-      
+      toast('Jira Cloud connected', 'success');
+
       // Clear forms
       setJiraUrl('');
       setJiraEmail('');
@@ -95,153 +98,197 @@ export default function IntegrationsPage() {
   };
 
   const handleDisconnect = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to disconnect ${name}?`)) return;
+    if (!confirm(`Disconnect ${name}? Published tickets stay in Jira, but you won't be able to publish new ones until you reconnect.`)) return;
     try {
       await api.deleteIntegration(id);
-      toast('Integration disconnected successfully', 'success');
+      toast('Jira Cloud disconnected', 'success');
       loadIntegrations();
     } catch (err: any) {
       toast(err.message || 'Failed to disconnect integration', 'error');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-slate-900 dark:text-zinc-300 animate-spin" />
-        <p className="text-xs font-bold tracking-widest text-slate-400 dark:text-zinc-500 uppercase">Loading Integrations...</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading integrations…" />;
 
   const activeJira = integrations.find((i) => i.type === 'jira');
 
   return (
     <ProtectedRoute>
-      <div className="space-y-8 animate-fade-in max-w-xl mx-auto pb-16">
-        {/* Title */}
-        <div className="text-center sm:text-left">
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Integration Settings</h2>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 font-semibold">
-            Connect Jira issue trackers. API credentials are fully encrypted and stored backend-side.
-          </p>
-        </div>
+      <div className="mx-auto max-w-[760px] space-y-10 pb-8">
+        <PageHeader
+          eyebrow="workspace · integrations"
+          title="Integrations"
+          description="Connect the tracker your engineers already use. Approved documents publish there as tickets."
+        />
 
-        {/* Error Alert */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 px-4 py-3.5 rounded-2xl flex items-center gap-3 animate-slide-up">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-500 dark:text-red-400" />
-            <p className="text-sm font-medium">{error}</p>
+          <div role="alert" className="alert alert-error">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <p>{error}</p>
           </div>
         )}
 
-        {/* Platforms */}
-        <div className="bg-white dark:bg-[#0c0c0e] border border-slate-200 dark:border-zinc-800 shadow-2xl shadow-slate-900/5 dark:shadow-black/20 p-8 rounded-3xl transition-colors duration-300">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-zinc-900">
-              <div className="bg-blue-600 text-white p-2.5 rounded-2xl font-black text-sm leading-none flex items-center justify-center w-10 h-10 shadow-md shadow-blue-500/10">
-                JR
+        <section aria-labelledby="jira-title" className="card overflow-hidden">
+          <div className="flex items-start gap-4 border-b border-line p-6 md:px-8">
+            <TrackerMark letter="J" className="bg-info/10 text-info" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 id="jira-title" className="text-[17px] font-semibold">
+                  Jira Cloud
+                </h2>
+                {activeJira && (
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-card px-2 py-0.5 text-[12px] font-semibold text-ink-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden /> Connected
+                  </span>
+                )}
               </div>
-              <div>
-                <h4 className="font-extrabold text-slate-800 dark:text-zinc-100 text-base">Jira Cloud</h4>
-                <p className="text-xs text-slate-400 dark:text-zinc-500 font-semibold">Publish stories and tickets directly into Jira tasks.</p>
-              </div>
+              <p className="mt-1 text-[14px] text-ink-2">Publish approved stories and tasks as Jira issues.</p>
             </div>
+          </div>
 
-            {activeJira ? (
-              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-6 space-y-4 animate-fade-in">
-                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                  Connected Pipeline
+          {activeJira ? (
+            <div className="space-y-6 p-6 md:px-8">
+              <dl className="divide-y divide-line rounded-xl border border-line text-[14px]">
+                <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:justify-between">
+                  <dt className="text-ink-3">Site</dt>
+                  <dd className="break-all font-mono text-[13px]">{activeJira.api_url}</dd>
                 </div>
-                <div className="text-xs text-slate-600 dark:text-zinc-300 space-y-2 font-semibold bg-white/50 dark:bg-black/25 p-4 rounded-xl border border-emerald-500/10">
-                  <p className="flex justify-between"><span className="text-slate-400 dark:text-zinc-500">Host URL:</span> <span className="font-extrabold">{activeJira.api_url}</span></p>
-                  <p className="flex justify-between"><span className="text-slate-400 dark:text-zinc-500">Project Key:</span> <span className="font-extrabold text-blue-600 dark:text-blue-400">{activeJira.project_id}</span></p>
+                <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:justify-between">
+                  <dt className="text-ink-3">Project key</dt>
+                  <dd className="font-mono text-[13px]">{activeJira.project_id}</dd>
                 </div>
-                
-                <button
-                  onClick={() => handleDisconnect(activeJira.id, activeJira.name)}
-                  className="w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold py-3 rounded-xl transition-all active:scale-[0.98]"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Disconnect Pipeline</span>
-                </button>
+                {activeJira.config?.dry_run && (
+                  <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:justify-between">
+                    <dt className="text-ink-3">Mode</dt>
+                    <dd>Dry run (no real issues are created)</dd>
+                  </div>
+                )}
+              </dl>
+              <button type="button" onClick={() => handleDisconnect(activeJira.id, activeJira.name)} className="btn btn-danger">
+                Disconnect Jira
+              </button>
+            </div>
+          ) : (
+            <form
+              className="space-y-5 p-6 md:px-8"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleConnect('jira');
+              }}
+            >
+              <div>
+                <label htmlFor="jira-url" className="field-label">
+                  Site URL
+                </label>
+                <input
+                  id="jira-url"
+                  type="url"
+                  required
+                  value={jiraUrl}
+                  onChange={(e) => setJiraUrl(e.target.value)}
+                  placeholder="https://your-team.atlassian.net"
+                  className="field"
+                />
               </div>
-            ) : (
-              <div className="space-y-4 pt-2">
+
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Jira Instance URL</label>
+                  <label htmlFor="jira-email" className="field-label">
+                    Account email
+                  </label>
                   <input
-                    type="text"
-                    value={jiraUrl}
-                    onChange={(e) => setJiraUrl(e.target.value)}
-                    placeholder="https://company.atlassian.net"
-                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Jira User Email</label>
-                  <input
+                    id="jira-email"
                     type="email"
+                    required
                     value={jiraEmail}
                     onChange={(e) => setJiraEmail(e.target.value)}
                     placeholder="name@company.com"
-                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
+                    className="field"
                   />
                 </div>
-                
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Jira API Token</label>
+                  <label htmlFor="jira-project" className="field-label">
+                    Project key
+                  </label>
                   <input
-                    type="password"
-                    value={jiraToken}
-                    onChange={(e) => setJiraToken(e.target.value)}
-                    placeholder="Enter API Token secret"
-                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">Project Key</label>
-                  <input
+                    id="jira-project"
                     type="text"
+                    required
                     value={jiraProject}
                     onChange={(e) => setJiraProject(e.target.value)}
-                    placeholder="e.g. PROJ"
-                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all text-xs font-semibold"
+                    placeholder="APE"
+                    className="field font-mono uppercase"
                   />
                 </div>
-                
-                <div className="flex items-center gap-2.5 pt-1.5 pb-2">
-                  <input
-                    type="checkbox"
-                    id="jiraDryRun"
-                    checked={jiraDryRun}
-                    onChange={(e) => setJiraDryRun(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-zinc-800 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
-                  />
-                  <label htmlFor="jiraDryRun" className="text-xs font-semibold text-slate-500 dark:text-zinc-400 cursor-pointer select-none">
-                    Enable Dry Run (Test connection without creating real tickets)
-                  </label>
-                </div>
-                
-                <button
-                  onClick={() => handleConnect('jira')}
-                  disabled={submitting !== null || !jiraUrl || !jiraEmail || !jiraToken || !jiraProject}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-extrabold py-3.5 rounded-xl disabled:opacity-50 transition-all duration-300 shadow-md active:scale-[0.98]"
-                >
-                  {submitting === 'jira' ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-zinc-300 dark:text-zinc-700" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                  <span>Connect Jira Cloud</span>
-                </button>
               </div>
-            )}
-          </div>
-        </div>
+
+              <div>
+                <label htmlFor="jira-token" className="field-label">
+                  API token
+                </label>
+                <input
+                  id="jira-token"
+                  type="password"
+                  required
+                  autoComplete="off"
+                  value={jiraToken}
+                  onChange={(e) => setJiraToken(e.target.value)}
+                  aria-describedby="jira-token-hint"
+                  className="field"
+                />
+                <p id="jira-token-hint" className="field-hint">
+                  Create one in your Atlassian account under Security → API tokens. It&apos;s kept on the server and masked
+                  whenever it&apos;s shown.
+                </p>
+              </div>
+
+              <label htmlFor="jira-dry-run" className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-4 transition-colors hover:bg-stone/40">
+                <input
+                  type="checkbox"
+                  id="jira-dry-run"
+                  checked={jiraDryRun}
+                  onChange={(e) => setJiraDryRun(e.target.checked)}
+                  className="checkbox mt-0.5"
+                />
+                <span>
+                  <span className="block text-[14px] font-semibold">Dry run</span>
+                  <span className="block text-[13px] text-ink-2">Test the connection without creating real issues.</span>
+                </span>
+              </label>
+
+              <button type="submit" disabled={submitting !== null} className="btn btn-primary btn-lg w-full sm:w-auto">
+                {submitting === 'jira' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                {submitting === 'jira' ? 'Connecting…' : 'Connect Jira'}
+              </button>
+            </form>
+          )}
+        </section>
+
+        <section aria-labelledby="next-title" className="space-y-3">
+          <h2 id="next-title" className="text-[13px] font-semibold text-ink-2">
+            Coming next
+          </h2>
+          <ul className="card divide-y divide-line">
+            {[
+              { name: 'GitHub Issues', letter: 'G', note: 'Publish as issues in a repository.' },
+              { name: 'Linear', letter: 'L', note: 'Publish as Linear issues in a team.' },
+            ].map((t) => (
+              <li key={t.name} className="flex items-center gap-4 p-5 md:px-8">
+                <TrackerMark letter={t.letter} className="bg-stone text-ink-3" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-semibold text-ink-2">{t.name}</p>
+                  <p className="text-[13px] text-ink-3">{t.note}</p>
+                </div>
+                <span className="text-[12.5px] font-medium text-ink-3">Not available yet</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <p className="flex items-center gap-2 text-[13px] text-ink-3">
+          <Check className="h-3.5 w-3.5 text-success" aria-hidden />
+          Each approved document publishes once per integration, so re-clicking never files duplicates.
+        </p>
       </div>
     </ProtectedRoute>
   );

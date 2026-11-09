@@ -9,26 +9,59 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthContext';
-import {
-  ArrowLeft,
-  Save,
-  CheckCircle,
-  XCircle,
-  ExternalLink,
-  Layers,
-  Loader2,
-  AlertTriangle,
-  Eye,
-  Edit2,
-  Target,
-  TrendingUp,
-  Users,
-  Shield,
-  CheckSquare,
-  Activity,
-  Layout,
-  Server,
-} from 'lucide-react';
+import { BackLink, LoadingState, PageHeader } from '@/components/app/primitives';
+import { AlertTriangle, Check, Code, ExternalLink, FileText, Loader2, X } from 'lucide-react';
+
+const TAB_LABEL: Record<string, { short: string; long: string }> = {
+  brd: { short: 'BRD', long: 'Business requirements' },
+  prd: { short: 'PRD', long: 'Product requirements' },
+  story: { short: 'Stories', long: 'User stories' },
+  task: { short: 'Tasks', long: 'Task breakdowns' },
+};
+
+const asList = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : []);
+
+function DocSection({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={`space-y-3 ${className}`}>
+      <h4 className="eyebrow">{label}</h4>
+      {children}
+    </section>
+  );
+}
+
+function BulletList({ items, marker = 'dot' }: { items: string[]; marker?: 'dot' | 'number' | 'check' }) {
+  if (items.length === 0) return <p className="text-[14px] text-ink-3">None listed.</p>;
+  return (
+    <ol className="space-y-2.5">
+      {items.map((item, idx) => (
+        <li key={idx} className="flex items-start gap-3 text-[14.5px] leading-relaxed">
+          {marker === 'number' ? (
+            <span className="mt-[3px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-line font-mono text-[10.5px] text-ink-2">
+              {idx + 1}
+            </span>
+          ) : marker === 'check' ? (
+            <span className="mt-[3px] flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-line text-success">
+              <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+            </span>
+          ) : (
+            <span className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-line-strong" aria-hidden />
+          )}
+          <span className="min-w-0">{item}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line bg-card px-2 py-0.5 text-[12px] font-semibold text-ink-2">
+      <span className={`h-1.5 w-1.5 rounded-full ${tone}`} aria-hidden />
+      {children}
+    </span>
+  );
+}
 
 type DocType = 'brd' | 'prd' | 'story' | 'task';
 const TABS: DocType[] = ['brd', 'prd', 'story', 'task'];
@@ -237,383 +270,213 @@ function DocumentReview() {
       data = JSON.parse(editContentText);
     } catch (err) {
       return (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-amber-800 space-y-3">
-          <div className="flex items-center gap-2 font-bold text-sm">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
-            Invalid JSON Format
-          </div>
-          <p className="text-xs">
-            The editor currently contains invalid JSON. Please switch back to the <strong>Edit JSON</strong> tab to correct syntax errors before previewing.
+        <div role="alert" className="alert alert-warning flex-col gap-3">
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="h-4 w-4" aria-hidden /> This content isn&apos;t valid JSON
           </p>
-          <button
-            type="button"
-            onClick={() => setViewMode('edit')}
-            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
-          >
-            Open Editor
+          <p className="text-ink-2">Fix the syntax in the JSON editor before switching back to the readable view.</p>
+          <button type="button" onClick={() => setViewMode('edit')} className="btn btn-secondary btn-sm">
+            Open JSON editor
           </button>
         </div>
       );
     }
 
-    if (!data) return <p className="text-slate-400 italic text-sm text-center py-12">No content available.</p>;
+    if (!data) return <p className="py-12 text-center text-[14px] text-ink-3">No content yet.</p>;
 
     switch (activeTab) {
       case 'brd':
         return (
-          <div className="space-y-6">
-            <div className="border-b border-slate-100 pb-4">
-              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">{data.title || 'Business Requirements Document'}</h3>
-            </div>
+          <article className="space-y-8">
+            <h3 className="font-display text-[32px] leading-[1.1]">{data.title || 'Business Requirements Document'}</h3>
 
             {data.problem_statement && (
-              <div className="bg-gradient-to-r from-violet-500/5 to-indigo-500/5 border border-indigo-100 rounded-xl p-5 shadow-xs">
-                <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                  <Target className="w-4 h-4" />
-                  Problem Statement
-                </h4>
-                <p className="text-xs text-slate-700 leading-relaxed font-semibold">{data.problem_statement}</p>
-              </div>
+              <DocSection label="problem">
+                <p className="border-l-2 border-brand pl-4 text-[16px] leading-relaxed">{data.problem_statement}</p>
+              </DocSection>
             )}
 
             {data.business_impact && (
-              <div className="bg-gradient-to-r from-emerald-500/5 to-teal-500/5 border border-emerald-100 rounded-xl p-5 shadow-xs">
-                <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                  <TrendingUp className="w-4 h-4" />
-                  Business Impact
-                </h4>
-                <p className="text-xs text-slate-700 leading-relaxed font-semibold">{data.business_impact}</p>
-              </div>
+              <DocSection label="business impact">
+                <p className="text-[16px] leading-relaxed text-ink-2">{data.business_impact}</p>
+              </DocSection>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <CheckSquare className="w-4 h-4 text-blue-500" />
-                  Business Goals
-                </h4>
-                <ul className="space-y-2">
-                  {Array.isArray(data.goals) && data.goals.map((goal: string, idx: number) => (
-                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-600">{idx + 1}</span>
-                      <span className="pt-0.5">{goal}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-purple-500" />
-                  Target Stakeholders
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {Array.isArray(data.target_stakeholders) && data.target_stakeholders.map((sh: string, idx: number) => (
-                    <span key={idx} className="text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-full shadow-xs">
-                      {sh}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-rose-500" />
-                  Success Metrics
-                </h4>
-                <ul className="space-y-2">
-                  {Array.isArray(data.success_metrics) && data.success_metrics.map((metric: string, idx: number) => (
-                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-rose-50 text-rose-600 text-[10px] font-bold">✓</span>
-                      <span>{metric}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div className="grid gap-8 border-t border-line pt-8 md:grid-cols-3">
+              <DocSection label="goals">
+                <BulletList items={asList(data.goals)} marker="number" />
+              </DocSection>
+              <DocSection label="stakeholders">
+                <BulletList items={asList(data.target_stakeholders)} />
+              </DocSection>
+              <DocSection label="success metrics">
+                <BulletList items={asList(data.success_metrics)} marker="check" />
+              </DocSection>
             </div>
-          </div>
+          </article>
         );
 
-      case 'prd':
+      case 'prd': {
+        const flows = asList(data.user_flows);
+        const milestones = asList(data.milestones);
         return (
-          <div className="space-y-6">
-            <div className="border-b border-slate-100 pb-4">
-              <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">{data.title || 'Product Requirements Document'}</h3>
-            </div>
+          <article className="space-y-8">
+            <h3 className="font-display text-[32px] leading-[1.1]">{data.title || 'Product Requirements Document'}</h3>
 
-            {Array.isArray(data.user_flows) && data.user_flows.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">User Experience Flows</h4>
-                <div className="relative border-l border-blue-100 ml-3 pl-6 space-y-4">
-                  {data.user_flows.map((flow: string, idx: number) => (
-                    <div key={idx} className="relative">
-                      <span className="absolute -left-[31px] top-0 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white text-[11px] font-bold shadow-md shadow-blue-500/20 border-2 border-white">
+            {flows.length > 0 && (
+              <DocSection label="user flows">
+                <ol className="relative space-y-4 border-l border-line pl-6">
+                  {flows.map((flow, idx) => (
+                    <li key={idx} className="relative text-[14.5px] leading-relaxed">
+                      <span className="absolute -left-[37px] top-0 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-card font-mono text-[11px] text-ink-2">
                         {idx + 1}
                       </span>
-                      <p className="text-xs font-semibold text-slate-700 pt-0.5">{flow}</p>
-                    </div>
+                      {flow}
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ol>
+              </DocSection>
             )}
 
-            {Array.isArray(data.milestones) && data.milestones.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Project Milestones</h4>
-                <div className="relative border-l border-slate-200 ml-3 pl-6 space-y-4">
-                  {data.milestones.map((ms: string, idx: number) => (
-                    <div key={idx} className="relative">
-                      <span className="absolute -left-[30px] top-0 flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold border-2 border-white">
-                        ★
-                      </span>
-                      <p className="text-xs font-semibold text-slate-600 pt-0.5">{ms}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {milestones.length > 0 && (
+              <DocSection label="milestones">
+                <BulletList items={milestones} marker="number" />
+              </DocSection>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layout className="w-4 h-4 text-blue-500" />
-                  Functional Req.
-                </h4>
-                <ul className="space-y-2">
-                  {Array.isArray(data.functional_requirements) && data.functional_requirements.map((req: string, idx: number) => (
-                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
-                      <span className="text-blue-500 font-bold shrink-0">•</span>
-                      <span>{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Shield className="w-4 h-4 text-emerald-500" />
-                  Non-Functional Req.
-                </h4>
-                <ul className="space-y-2">
-                  {Array.isArray(data.non_functional_requirements) && data.non_functional_requirements.map((req: string, idx: number) => (
-                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2">
-                      <span className="text-emerald-500 font-bold shrink-0">•</span>
-                      <span>{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Tech Constraints
-                </h4>
-                <ul className="space-y-2">
-                  {Array.isArray(data.technical_constraints) && data.technical_constraints.map((req: string, idx: number) => (
-                    <li key={idx} className="text-xs text-slate-600 font-semibold flex items-start gap-2 bg-amber-50/50 p-2 rounded border border-amber-100/50">
-                      <span>{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div className="grid gap-8 border-t border-line pt-8 md:grid-cols-3">
+              <DocSection label="functional">
+                <BulletList items={asList(data.functional_requirements)} />
+              </DocSection>
+              <DocSection label="non-functional">
+                <BulletList items={asList(data.non_functional_requirements)} />
+              </DocSection>
+              <DocSection label="technical constraints">
+                <BulletList items={asList(data.technical_constraints)} />
+              </DocSection>
             </div>
-          </div>
+          </article>
         );
+      }
 
-      case 'story':
-        const getPriorityColor = (prio: string) => {
-          const lower = String(prio).toLowerCase();
-          if (lower.includes('must')) return 'bg-rose-50 border-rose-200 text-rose-700';
-          if (lower.includes('should')) return 'bg-blue-50 border-blue-200 text-blue-700';
-          return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-        };
-
+      case 'story': {
+        const prio = String(data.priority || '').toLowerCase();
+        const prioTone = prio.includes('must') ? 'bg-danger' : prio.includes('should') ? 'bg-info' : 'bg-success';
         return (
-          <div className="max-w-2xl mx-auto py-2">
-            <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded">Agile User Story</span>
-                  <h3 className="text-base font-extrabold text-slate-800 mt-2">{data.title || 'Draft Story Details'}</h3>
-                </div>
-                {data.priority && (
-                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border shadow-xs ${getPriorityColor(data.priority)}`}>
-                    {data.priority}
-                  </span>
-                )}
+          <article className="mx-auto max-w-2xl space-y-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="eyebrow">user story</p>
+                <h3 className="mt-2 font-display text-[30px] leading-[1.1]">{data.title || 'Draft story'}</h3>
               </div>
+              {data.priority && <Chip tone={prioTone}>{data.priority}</Chip>}
+            </div>
 
-              <div className="space-y-3.5 bg-slate-50/80 p-5 rounded-xl border border-slate-100/50">
+            {(data.user_role || data.requirement || data.benefit) && (
+              <div className="space-y-1.5 rounded-xl border border-line bg-card p-5 font-display text-[22px] leading-snug">
                 {data.user_role && (
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 w-20">As a</span>
-                    <span className="text-xs font-bold text-slate-800 leading-snug">{String(data.user_role).replace(/^As a /i, '')}</span>
-                  </div>
+                  <p>
+                    <span className="text-ink-3">As a </span>
+                    {String(data.user_role).replace(/^As a /i, '')}
+                  </p>
                 )}
                 {data.requirement && (
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 w-20">I want to</span>
-                    <span className="text-xs font-bold text-indigo-700 leading-snug">{String(data.requirement).replace(/^I want to /i, '')}</span>
-                  </div>
+                  <p>
+                    <span className="text-ink-3">I want to </span>
+                    {String(data.requirement).replace(/^I want to /i, '')}
+                  </p>
                 )}
                 {data.benefit && (
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0 w-20">So that</span>
-                    <span className="text-xs font-bold text-emerald-700 leading-snug">{String(data.benefit).replace(/^so that /i, '')}</span>
-                  </div>
+                  <p>
+                    <span className="text-ink-3">so that </span>
+                    <span className="italic">{String(data.benefit).replace(/^so that /i, '')}</span>
+                  </p>
                 )}
               </div>
-
-              {Array.isArray(data.acceptance_criteria) && data.acceptance_criteria.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckSquare className="w-4 h-4 text-blue-500" />
-                    Acceptance Criteria
-                  </h4>
-                  <div className="space-y-2">
-                    {data.acceptance_criteria.map((criteria: string, idx: number) => (
-                      <div key={idx} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50/80 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked
-                          readOnly
-                          className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 w-3.5 h-3.5 shrink-0"
-                        />
-                        <span className="text-xs font-semibold text-slate-600">{criteria}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'task':
-        const getComplexityColor = (comp: string) => {
-          const lower = String(comp).toLowerCase();
-          if (lower.includes('large')) return 'bg-rose-50 border-rose-200 text-rose-700';
-          if (lower.includes('medium')) return 'bg-amber-50 border-amber-200 text-amber-700';
-          return 'bg-blue-50 border-blue-200 text-blue-700';
-        };
-
-        return (
-          <div className="space-y-6">
-            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-purple-600 bg-purple-50 px-2.5 py-1 rounded">Technical Task Breakdown</span>
-                <h3 className="text-base font-extrabold text-slate-800 mt-2">{data.story_title || 'Story Development Tasks'}</h3>
-              </div>
-              {data.estimated_complexity && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-slate-400 font-bold">Complexity:</span>
-                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border shadow-xs ${getComplexityColor(data.estimated_complexity)}`}>
-                    {data.estimated_complexity}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                  <Layout className="w-4 h-4 text-sky-500" />
-                  Frontend Tasks
-                  {Array.isArray(data.frontend_tasks) && (
-                    <span className="ml-auto bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{data.frontend_tasks.length}</span>
-                  )}
-                </h4>
-                <div className="space-y-2">
-                  {Array.isArray(data.frontend_tasks) && data.frontend_tasks.map((task: string, idx: number) => (
-                    <div key={idx} className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow">
-                      <p className="text-xs font-semibold text-slate-700 leading-snug">{task}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                  <Server className="w-4 h-4 text-purple-500" />
-                  Backend Tasks
-                  {Array.isArray(data.backend_tasks) && (
-                    <span className="ml-auto bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{data.backend_tasks.length}</span>
-                  )}
-                </h4>
-                <div className="space-y-2">
-                  {Array.isArray(data.backend_tasks) && data.backend_tasks.map((task: string, idx: number) => (
-                    <div key={idx} className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow">
-                      <p className="text-xs font-semibold text-slate-700 leading-snug">{task}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                  <Shield className="w-4 h-4 text-emerald-500" />
-                  Testing Tasks
-                  {Array.isArray(data.testing_tasks) && (
-                    <span className="ml-auto bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{data.testing_tasks.length}</span>
-                  )}
-                </h4>
-                <div className="space-y-2">
-                  {Array.isArray(data.testing_tasks) && data.testing_tasks.map((task: string, idx: number) => (
-                    <div key={idx} className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs hover:shadow-sm transition-shadow">
-                      <p className="text-xs font-semibold text-slate-700 leading-snug">{task}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {Array.isArray(data.dependencies) && data.dependencies.length > 0 && (
-              <div className="border-t border-slate-100 pt-4 space-y-2">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  📌 Tech Dependencies
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {data.dependencies.map((dep: string, idx: number) => (
-                    <span key={idx} className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-lg">
-                      {dep}
-                    </span>
-                  ))}
-                </div>
-              </div>
             )}
-          </div>
+
+            {asList(data.acceptance_criteria).length > 0 && (
+              <DocSection label="acceptance criteria">
+                <BulletList items={asList(data.acceptance_criteria)} marker="check" />
+              </DocSection>
+            )}
+          </article>
         );
+      }
+
+      case 'task': {
+        const comp = String(data.estimated_complexity || '').toLowerCase();
+        const compTone = comp.includes('large') ? 'bg-danger' : comp.includes('medium') ? 'bg-warning' : 'bg-info';
+        const groups = [
+          { label: 'Frontend', items: asList(data.frontend_tasks) },
+          { label: 'Backend', items: asList(data.backend_tasks) },
+          { label: 'Testing', items: asList(data.testing_tasks) },
+        ];
+        const deps = asList(data.dependencies);
+        return (
+          <article className="space-y-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="eyebrow">task breakdown</p>
+                <h3 className="mt-2 font-display text-[30px] leading-[1.1]">{data.story_title || 'Story tasks'}</h3>
+              </div>
+              {data.estimated_complexity && <Chip tone={compTone}>Complexity: {data.estimated_complexity}</Chip>}
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-3">
+              {groups.map((g) => (
+                <section key={g.label} className="overflow-hidden rounded-xl border border-line bg-card">
+                  <h4 className="flex items-center justify-between border-b border-line px-4 py-3 text-[13.5px] font-semibold">
+                    {g.label}
+                    <span className="font-mono text-[12px] font-normal text-ink-3">{g.items.length}</span>
+                  </h4>
+                  {g.items.length === 0 ? (
+                    <p className="px-4 py-4 text-[13.5px] text-ink-3">None.</p>
+                  ) : (
+                    <ul className="divide-y divide-line">
+                      {g.items.map((task, idx) => (
+                        <li key={idx} className="px-4 py-3 text-[14px] leading-snug">
+                          {task}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ))}
+            </div>
+
+            {deps.length > 0 && (
+              <DocSection label="dependencies" className="border-t border-line pt-6">
+                <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                  {deps.map((dep, idx) => (
+                    <li key={idx} className="font-mono text-[12.5px] text-ink-2">
+                      {dep}
+                    </li>
+                  ))}
+                </ul>
+              </DocSection>
+            )}
+          </article>
+        );
+      }
 
       default:
-        return (
-          <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto leading-relaxed">
-            {editContentText}
-          </pre>
-        );
+        return <pre className="code-block">{editContentText}</pre>;
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-10 h-10 text-slate-900 animate-spin" />
-        <p className="text-sm font-semibold text-slate-500">Loading document workspace...</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading drafts…" />;
 
   if (error || !cluster) {
     return (
-      <div className="space-y-4">
-        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
-          <ArrowLeft className="w-4 h-4" /> Back to Inbox
-        </Link>
-        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl space-y-2">
-          <h3 className="font-bold flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" /> Workspace Error
-          </h3>
-          <p className="text-sm">{error || 'Cluster not found'}</p>
+      <div className="space-y-6">
+        <BackLink href="/dashboard">Inbox</BackLink>
+        <div role="alert" className="alert alert-error">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-semibold">Couldn&apos;t load these drafts</p>
+            <p>{error || 'Cluster not found'}</p>
+          </div>
         </div>
       </div>
     );
@@ -634,184 +497,148 @@ function DocumentReview() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Back & Title */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Inbox
+    <div className="space-y-10">
+      <PageHeader
+        back={<BackLink href="/dashboard">Inbox</BackLink>}
+        eyebrow="cluster · review"
+        title={cluster.title}
+        description="Read the drafts, fix what's off, then approve. Only approved documents can be published."
+        actions={
+          <Link href={`/pipeline/${clusterId}`} className="btn btn-secondary">
+            Open pipeline
           </Link>
-          <Link
-            href={`/pipeline/${clusterId}`}
-            className="text-xs font-semibold text-slate-800 hover:text-black dark:text-zinc-200 dark:hover:text-white bg-slate-100 dark:bg-zinc-900 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Open Stepper Pipeline
-          </Link>
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{cluster.title}</h2>
-          <p className="text-sm text-slate-500 mt-1">Review & edit AI draft specifications, then publish them to your tracker.</p>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Left: stage tabs + document list */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Document Stages</h3>
-          <div className="bg-white border border-slate-200 rounded-xl p-2 shadow-sm flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1.5">
-            {TABS.map((tab) => {
-              const count = documents.filter((d) => d.type === tab).length;
-              const isActive = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => selectTab(tab)}
-                  className={`flex-1 lg:flex-initial flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-left whitespace-nowrap lg:whitespace-normal ${
-                    isActive
-                      ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-sm'
-                      : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900 hover:text-slate-950 dark:hover:text-white'
-                  }`}
-                >
-                  <span>{tab.toUpperCase()}</span>
-                  {count > 0 ? (
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                      isActive ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-black' : 'bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400'
-                    }`}>
-                      {count}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] opacity-60 italic">Not generated</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+      <div className="grid gap-8 lg:grid-cols-[232px_minmax(0,1fr)]">
+        {/* Left: stages + documents */}
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <nav aria-label="Document stage">
+            <p className="eyebrow px-1 pb-2">stages</p>
+            <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:flex-col lg:overflow-visible">
+              {TABS.map((tab) => {
+                const count = documents.filter((d) => d.type === tab).length;
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => selectTab(tab)}
+                    aria-current={isActive ? 'page' : undefined}
+                    title={TAB_LABEL[tab].long}
+                    className="nav-item shrink-0 justify-between lg:w-full"
+                  >
+                    <span>{TAB_LABEL[tab].short}</span>
+                    <span className="font-mono text-[12px] text-ink-3">{count > 0 ? count : '—'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
 
           {docsOfTab.length > 1 && (
-            <div className="space-y-2 pt-2">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">
-                {activeTab === 'task' ? 'Task sets by story' : `${activeTab.toUpperCase()} documents`}
-              </h3>
-              <div className="bg-white border border-slate-200 rounded-xl p-2 shadow-sm flex flex-col gap-1 max-h-[420px] overflow-y-auto">
+            <div>
+              <p className="eyebrow px-1 pb-2">{activeTab === 'task' ? 'task sets by story' : `${TAB_LABEL[activeTab].long.toLowerCase()}`}</p>
+              <ul className="card max-h-[420px] divide-y divide-line overflow-y-auto">
                 {docsOfTab.map((d, idx) => {
                   const isActive = d.id === activeDocument?.id;
                   return (
-                    <button
-                      key={d.id}
-                      onClick={() => selectDocument(d.id)}
-                      className={`text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center justify-between gap-2 ${
-                        isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="line-clamp-2">{docLabel(d, idx)}</span>
-                      <StatusBadge status={d.status} />
-                    </button>
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectDocument(d.id)}
+                        aria-current={isActive ? 'true' : undefined}
+                        className={`flex w-full flex-col items-start gap-2 px-3.5 py-3 text-left transition-colors duration-150 ${
+                          isActive ? 'bg-stone/70' : 'hover:bg-stone/40'
+                        }`}
+                      >
+                        <span className={`line-clamp-2 text-[13.5px] leading-snug ${isActive ? 'font-semibold text-ink' : 'text-ink-2'}`}>
+                          {docLabel(d, idx)}
+                        </span>
+                        <StatusBadge status={d.status} />
+                      </button>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
           )}
-        </div>
+        </aside>
 
-        {/* Right: editor */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* Right: document */}
+        <div className="min-w-0">
           {!activeDocument ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-4">
-              <AlertTriangle className="w-12 h-12 text-slate-300" />
-              <div>
-                <h4 className="font-bold text-slate-700">Document Not Generated Yet</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-md">
-                  Use the Stepper Pipeline to generate this document.
-                </p>
-              </div>
-              <Link
-                href={`/pipeline/${clusterId}`}
-                className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-              >
-                Go to Stepper Pipeline
+            <div className="card flex flex-col items-center px-6 py-16 text-center">
+              <p className="font-display text-[28px] leading-tight">No {TAB_LABEL[activeTab].long.toLowerCase()} yet.</p>
+              <p className="mt-2 max-w-sm text-[14.5px] text-ink-2">Generate this step from the pipeline, then come back to review it.</p>
+              <Link href={`/pipeline/${clusterId}`} className="btn btn-primary mt-6">
+                Go to pipeline
               </Link>
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <article className="card overflow-hidden">
+              <header className="flex flex-col gap-4 border-b border-line px-6 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h4 className="font-bold text-slate-800 text-base">{activeTab.toUpperCase()} · v{activeDocument.version}</h4>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="text-[16px] font-semibold">
+                      {TAB_LABEL[activeTab].long}{' '}
+                      <span className="font-mono text-[12.5px] font-normal text-ink-3">v{activeDocument.version}</span>
+                    </h2>
                     <StatusBadge status={activeDocument.status} />
-                    {isDirty && (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                        Unsaved changes
-                      </span>
-                    )}
+                    {isDirty && <span className="text-[12.5px] font-semibold text-warning">Unsaved changes</span>}
                   </div>
-                  <p className="text-xs text-slate-400">Last updated: {new Date(activeDocument.updated_at).toLocaleString()}</p>
+                  <p className="text-[12.5px] text-ink-3">Updated {new Date(activeDocument.updated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
                 </div>
 
                 {/* Publishing (Jira is the only implemented tracker) */}
                 {(activeDocument.status === 'approved' || isPublished) && (
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-2">
                     {jiraIntegration ? (
                       canPublish ? (
                         <button
+                          type="button"
                           onClick={handlePublishJira}
                           disabled={busy !== null || isDirty}
                           title={isDirty ? 'Save or discard your edits first' : `Publish to ${jiraIntegration.name}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+                          className="btn btn-primary btn-sm"
                         >
-                          {busy === 'publish' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                          {busy === 'publish' && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
                           Publish to Jira
                         </button>
                       ) : null
                     ) : (
-                      <Link href="/integrations" className="text-xs font-semibold text-slate-600 underline hover:text-slate-900">
+                      <Link href="/integrations" className="link text-[13px]">
                         Connect Jira to publish
                       </Link>
                     )}
                   </div>
                 )}
-              </div>
+              </header>
 
-              {/* Body */}
-              <div className="p-6 space-y-4 flex-1">
-                <div className="space-y-1.5">
-                  <label htmlFor="doc-title" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Document Title</label>
+              <div className="space-y-6 p-6 md:p-8">
+                <div>
+                  <label htmlFor="doc-title" className="field-label">
+                    Title
+                  </label>
                   <input
                     id="doc-title"
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     disabled={isPublished}
-                    className="w-full text-sm font-semibold border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="field font-semibold"
                   />
                 </div>
 
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      {viewMode === 'edit' ? 'Document Content (JSON)' : 'Document Clean View'}
-                    </span>
-                    <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100/80 shadow-inner">
-                      <button
-                        type="button"
-                        onClick={() => setViewMode('preview')}
-                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 flex items-center gap-1.5 ${
-                          viewMode === 'preview' ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Clean View
+                <div>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="field-label mb-0">{viewMode === 'edit' ? 'Content (JSON)' : 'Content'}</span>
+                    <div className="seg" role="group" aria-label="Content view">
+                      <button type="button" aria-pressed={viewMode === 'preview'} onClick={() => setViewMode('preview')} className="seg-btn">
+                        <FileText className="h-3.5 w-3.5" aria-hidden /> Readable
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setViewMode('edit')}
-                        className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 flex items-center gap-1.5 ${
-                          viewMode === 'edit' ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        Edit JSON
+                      <button type="button" aria-pressed={viewMode === 'edit'} onClick={() => setViewMode('edit')} className="seg-btn">
+                        <Code className="h-3.5 w-3.5" aria-hidden /> Edit JSON
                       </button>
                     </div>
                   </div>
@@ -823,86 +650,86 @@ function DocumentReview() {
                         value={editContentText}
                         onChange={(e) => setEditContentText(e.target.value)}
                         readOnly={isPublished}
-                        rows={16}
-                        className={`w-full text-xs font-mono border rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-slate-900/20 bg-slate-50 dark:bg-zinc-900/40 focus:bg-white dark:focus:bg-zinc-950 leading-relaxed ${
-                          parsedEditor.ok ? 'border-slate-200 focus:border-slate-800' : 'border-red-300 focus:border-red-500'
-                        }`}
+                        rows={18}
+                        spellCheck={false}
+                        aria-invalid={!parsedEditor.ok}
+                        aria-describedby={!parsedEditor.ok ? 'json-error' : undefined}
+                        className="field font-mono text-[12.5px] leading-relaxed"
                       />
-                      {!parsedEditor.ok && <p className="text-xs font-semibold text-red-600">{parsedEditor.error}</p>}
+                      {!parsedEditor.ok && (
+                        <p id="json-error" className="mt-2 text-[13px] font-medium text-danger">
+                          {parsedEditor.error}
+                        </p>
+                      )}
                     </>
                   ) : (
-                    <div className="border border-slate-100 rounded-xl bg-slate-50/20 p-6 min-h-[400px]">
-                      {renderCleanView()}
-                    </div>
+                    <div className="min-h-[360px] rounded-xl border border-line bg-paper/50 p-6 md:p-8">{renderCleanView()}</div>
                   )}
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
+              <footer className="flex flex-col gap-4 border-t border-line bg-paper/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
+                <div className="min-w-0 flex-1 text-[13px]">
                   {ticketLinks.length > 0 ? (
-                    <div className="bg-emerald-50 border border-emerald-100 px-3.5 py-1.5 rounded-lg flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-emerald-800">Published:</span>
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-success">
+                        <Check className="h-3.5 w-3.5" aria-hidden /> Published as
+                      </span>
                       {ticketLinks.map((l) => (
                         <a
                           key={l.id}
                           href={l.external_url || '#'}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline flex items-center gap-0.5"
+                          className="link inline-flex items-center gap-1 font-mono text-[12.5px]"
                         >
                           {l.external_id}
-                          <ExternalLink className="w-3 h-3" />
+                          <ExternalLink className="h-3 w-3" aria-hidden />
                         </a>
                       ))}
-                    </div>
-                  ) : isPublished ? (
-                    <p className="text-xs text-amber-700 font-semibold">Published, but no ticket link was recorded. Check your tracker.</p>
-                  ) : (
-                    <p className="text-xs text-slate-400 font-medium">
-                      Saving content creates a new version. Editing an approved document sends it back for review.
                     </p>
+                  ) : isPublished ? (
+                    <p className="font-medium text-warning">Published, but no ticket link was recorded. Check your tracker.</p>
+                  ) : (
+                    <p className="text-ink-3">Saving creates a new version. Editing an approved document sends it back to draft.</p>
                   )}
                 </div>
 
                 {!isPublished && (
-                  <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+                  <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                     <button
+                      type="button"
                       onClick={handleSave}
                       disabled={busy !== null || !isDirty || !parsedEditor.ok}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50 transition-colors"
+                      className="btn btn-secondary flex-1 sm:flex-initial"
                     >
-                      {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Save Changes
+                      {busy === 'save' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                      Save changes
                     </button>
 
                     {canReject && (
-                      <button
-                        onClick={handleReject}
-                        disabled={busy !== null}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 border border-red-200 text-red-700 hover:bg-red-50 text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50 transition-colors"
-                      >
-                        {busy === 'reject' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                      <button type="button" onClick={handleReject} disabled={busy !== null} className="btn btn-danger flex-1 sm:flex-initial">
+                        {busy === 'reject' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <X className="h-4 w-4" aria-hidden />}
                         Reject
                       </button>
                     )}
 
                     {canReview && (
                       <button
+                        type="button"
                         onClick={handleApprove}
                         disabled={busy !== null || !parsedEditor.ok}
                         title={isDirty ? 'Approves the content currently in the editor' : undefined}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-black text-sm font-semibold px-5 py-2 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
+                        className="btn btn-primary flex-1 sm:flex-initial"
                       >
-                        {busy === 'approve' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                        {isDirty ? 'Approve with Edits' : 'Approve'}
+                        {busy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
+                        {isDirty ? 'Approve with edits' : 'Approve'}
                       </button>
                     )}
                   </div>
                 )}
-              </div>
-            </div>
+              </footer>
+            </article>
           )}
         </div>
       </div>

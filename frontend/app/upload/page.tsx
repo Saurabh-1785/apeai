@@ -5,22 +5,8 @@ import Link from 'next/link';
 import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useToast } from '@/components/ui/ToastProvider';
-import {
-  Upload,
-  FileText,
-  Database,
-  Inbox,
-  Layers,
-  ArrowRight,
-  Sparkles,
-  Loader2,
-  CheckCircle2,
-  Code,
-  User,
-  Calendar,
-  ArrowUpRight,
-  Terminal
-} from 'lucide-react';
+import { PageHeader } from '@/components/app/primitives';
+import { ArrowRight, Loader2, Code, List, FileSpreadsheet, Check } from 'lucide-react';
 
 export default function SignalUploadPage() {
   const { toast } = useToast();
@@ -49,8 +35,8 @@ export default function SignalUploadPage() {
 
     try {
       const res = await api.ingestManualFeedback(manualText, manualAuthor || 'anonymous');
-      toast('Signal successfully normalized and saved in database!', 'success');
-      
+      toast('Feedback saved to your inbox', 'success');
+
       const normalizedRecord = {
         id: res.id,
         source: res.source,
@@ -61,7 +47,7 @@ export default function SignalUploadPage() {
           submission_type: 'text_paste'
         }
       };
-      
+
       setLastIngestedResult(normalizedRecord);
       setManualText('');
     } catch (err: any) {
@@ -82,8 +68,8 @@ export default function SignalUploadPage() {
 
     try {
       const res = await api.ingestCSVFeedback(csvFile);
-      toast(res.message || `CSV parsed successfully. Ingested ${res.saved || 0} signals!`, 'success');
-      
+      toast(res.message || `CSV imported: ${res.saved || 0} rows saved`, 'success');
+
       // Show the real rows that were just stored (most recent first).
       let stored: any[] = [];
       if ((res.saved || 0) > 0) {
@@ -108,329 +94,196 @@ export default function SignalUploadPage() {
     }
   };
 
+  const hasResults = !!lastIngestedResult || batchResults.length > 0;
+
   return (
     <ProtectedRoute>
-      <div className="space-y-8 animate-fade-in pb-16">
-        
-        {/* Page Header */}
-        <div className="pb-4 border-b border-slate-200/60 dark:border-zinc-900/80">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-900 px-2.5 py-1 rounded-md border border-slate-200 dark:border-zinc-800 tracking-widest">INGESTION GATEWAY</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-          </div>
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1.5">Upload Signals</h2>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 font-semibold">
-            Layer 1 Ingestion: Normalizes unstructured signals into standardized relational feedback records in Supabase.
-          </p>
-        </div>
+      <div className="space-y-12 pb-8">
+        <PageHeader
+          eyebrow="workspace · add feedback"
+          title="Add feedback"
+          description="Paste a single comment or import a spreadsheet. Everything is saved in the same shape: source, author, content and time."
+        />
 
-        {/* Ingestion Hub Split Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Paste */}
+          <section aria-labelledby="paste-title" className="card flex flex-col p-6 md:p-8">
+            <h2 id="paste-title" className="section-title">
+              Paste feedback
+            </h2>
+            <p className="mt-1.5 text-[14px] text-ink-2">One comment, quote or message at a time.</p>
 
-          {/* Column 1: Manual text paste */}
-          <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-3xl p-6 md:p-8 shadow-2xs hover:shadow-sm transition-all duration-300 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 p-2.5 rounded-xl border border-blue-500/10">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-800 dark:text-zinc-200 tracking-tight">Manual Text / Paste</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 font-bold uppercase tracking-wider">Direct API Ingest</p>
-                </div>
-              </div>
-            </div>
-
-            <form onSubmit={handleManualIngest} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Author / Source Identifier</label>
-                <div className="relative flex items-center">
-                  <User className="absolute left-3.5 w-4 h-4 text-slate-400 dark:text-zinc-600" />
-                  <input
-                    type="text"
-                    placeholder="e.g. anonymous, Saurabh, client@company.com"
-                    value={manualAuthor}
-                    onChange={(e) => setManualAuthor(e.target.value)}
-                    className="w-full text-xs font-semibold bg-slate-50/50 dark:bg-zinc-900/40 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-900 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 transition-all duration-300"
-                  />
-                </div>
+            <form onSubmit={handleManualIngest} className="mt-7 flex flex-1 flex-col gap-5">
+              <div>
+                <label htmlFor="author" className="field-label">
+                  Author
+                </label>
+                <input
+                  id="author"
+                  type="text"
+                  placeholder="anonymous"
+                  value={manualAuthor}
+                  onChange={(e) => setManualAuthor(e.target.value)}
+                  aria-describedby="author-hint"
+                  className="field"
+                />
+                <p id="author-hint" className="field-hint">
+                  Optional. A name, email or handle.
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Feedback content</label>
+              <div className="flex flex-1 flex-col">
+                <label htmlFor="content" className="field-label">
+                  Feedback
+                </label>
                 <textarea
-                  placeholder="Paste the raw feedback or customer quote here. The normalization engine will parse it automatically..."
+                  id="content"
+                  placeholder="“We export the dashboard to Excel every Monday. A CSV button would save us an hour.”"
                   value={manualText}
                   onChange={(e) => setManualText(e.target.value)}
-                  rows={5}
+                  rows={6}
                   required
-                  className="w-full text-xs font-semibold bg-slate-50/50 dark:bg-zinc-900/40 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 transition-all duration-300 resize-none leading-relaxed"
+                  className="field min-h-[160px] flex-1"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={ingestingManual || !manualText.trim()}
-                className="group w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-white text-sm font-bold py-3.5 rounded-xl disabled:opacity-50 active:scale-[0.99] transition-all duration-200 shrink-0"
-              >
-                {ingestingManual ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4" />
-                )}
-                <span>Proceed & Ingest Text</span>
+              <button type="submit" disabled={ingestingManual} className="btn btn-primary btn-lg w-full">
+                {ingestingManual && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                {ingestingManual ? 'Saving…' : 'Add to inbox'}
               </button>
             </form>
-          </div>
+          </section>
 
-          {/* Column 2: CSV Upload */}
-          <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-3xl p-6 md:p-8 shadow-2xs hover:shadow-sm transition-all duration-300 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 p-2.5 rounded-xl border border-emerald-500/10">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-800 dark:text-zinc-200 tracking-tight">CSV Batch Upload</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 font-bold uppercase tracking-wider">Spreadsheet ingestion</p>
-                </div>
-              </div>
-            </div>
+          {/* CSV */}
+          <section aria-labelledby="csv-title" className="card flex flex-col p-6 md:p-8">
+            <h2 id="csv-title" className="section-title">
+              Import a CSV
+            </h2>
+            <p className="mt-1.5 text-[14px] text-ink-2">Bring in a whole batch of rows at once.</p>
 
-            <form onSubmit={handleCsvIngest} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Select target spreadsheet</label>
-                
-                <div className="group relative border-2 border-dashed border-slate-250 dark:border-zinc-800 rounded-2xl p-10 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 text-center cursor-pointer transition-colors duration-300 bg-slate-50/20 dark:bg-zinc-900/10">
+            <form onSubmit={handleCsvIngest} className="mt-7 flex flex-1 flex-col gap-5">
+              <div className="flex flex-1 flex-col">
+                <span className="field-label" id="csv-label">
+                  Spreadsheet
+                </span>
+                <div className="group relative flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line-strong bg-paper/60 px-6 py-10 text-center transition-colors duration-200 focus-within:border-ink hover:border-ink/50 hover:bg-stone/40">
                   <input
                     type="file"
                     accept=".csv"
+                    aria-labelledby="csv-label"
+                    aria-describedby="csv-hint"
                     onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
-                  
-                  <div className="space-y-4">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-slate-50 dark:bg-zinc-900 flex items-center justify-center border dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
-                      <Inbox className="w-6 h-6 text-slate-400" />
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card text-ink-2">
+                    {csvFile ? <Check className="h-5 w-5 text-success" aria-hidden /> : <FileSpreadsheet className="h-5 w-5" aria-hidden />}
+                  </span>
+                  {csvFile ? (
+                    <div>
+                      <p className="max-w-[260px] truncate text-[14.5px] font-semibold">{csvFile.name}</p>
+                      <p className="mt-0.5 text-[12.5px] text-ink-3">{(csvFile.size / 1024).toFixed(1)} KB · click to choose another</p>
                     </div>
-                    {csvFile ? (
-                      <div>
-                        <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[250px] mx-auto">{csvFile.name}</p>
-                        <p className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 mt-1">{(csvFile.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-xs font-bold text-slate-650 dark:text-zinc-350">Drag & Drop or Browse</p>
-                        <p className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 mt-1">
-                          Accepts raw feedback files (requires a 'content' column)
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={ingestingCsv || !csvFile}
-                className="group w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-white text-sm font-bold py-3.5 rounded-xl disabled:opacity-50 active:scale-[0.99] transition-all duration-200 shrink-0"
-              >
-                {ingestingCsv ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Database className="w-4 h-4" />
-                )}
-                <span>Proceed & Ingest CSV</span>
-              </button>
-            </form>
-          </div>
-
-        </div>
-
-        {/* Database Inspection Gate (Show processed items below) */}
-        {(lastIngestedResult || batchResults.length > 0) && (
-          <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm space-y-6 animate-slide-up">
-            
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 dark:border-zinc-900 pb-5 gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border dark:border-blue-500/10">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-slate-800 dark:text-zinc-200 tracking-tight">Database Ingestion Ledger</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold mt-0.5">
-                    Inspect exactly how signals have been normalized and stored as SQL rows in Supabase.
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle Pretty / JSON */}
-              <div className="flex border border-slate-100 dark:border-zinc-850 rounded-xl p-1 bg-slate-50 dark:bg-zinc-900 self-start sm:self-auto">
-                <button
-                  onClick={() => setActiveViewMode('pretty')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                    activeViewMode === 'pretty'
-                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-2xs border border-slate-100 dark:border-zinc-850'
-                      : 'text-slate-400 dark:text-zinc-500'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Pretty Styled
-                </button>
-                <button
-                  onClick={() => setActiveViewMode('json')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                    activeViewMode === 'json'
-                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-2xs border border-slate-100 dark:border-zinc-850'
-                      : 'text-slate-400 dark:text-zinc-500'
-                  }`}
-                >
-                  <Code className="w-3.5 h-3.5" />
-                  Raw JSON
-                </button>
-              </div>
-            </div>
-
-            {/* Stored Records list */}
-            <div className="space-y-6">
-              
-              {/* Single manual feedback record */}
-              {lastIngestedResult && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                  
-                  {/* Pretty Styled View */}
-                  <div className={`space-y-4 ${activeViewMode === 'pretty' ? 'block' : 'hidden lg:block'}`}>
-                    <div className="bg-slate-50/60 dark:bg-zinc-900/30 border border-slate-100 dark:border-zinc-900 p-5 rounded-2xl space-y-4">
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-900/80 pb-3 flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md border border-blue-500/10">
-                            {lastIngestedResult.source}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">•</span>
-                          <span className="text-xs font-bold flex items-center gap-1.5 text-slate-700 dark:text-zinc-300">
-                            <User className="w-3.5 h-3.5" /> {lastIngestedResult.author}
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> {new Date(lastIngestedResult.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Normalized Payload</p>
-                        <p className="text-xs text-slate-700 dark:text-zinc-200 leading-relaxed font-semibold bg-white dark:bg-zinc-950 p-4 rounded-xl border border-slate-150 dark:border-zinc-900">
-                          {lastIngestedResult.content}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
-                        <div className="flex gap-2">
-                          <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 bg-slate-100/50 dark:bg-zinc-900 px-2 py-1 rounded-md">
-                            submission_type: {lastIngestedResult.metadata?.submission_type}
-                          </span>
-                        </div>
-                        <span className="text-[8px] font-mono text-slate-400 dark:text-zinc-600 truncate max-w-[150px]">
-                          ID: {lastIngestedResult.id}
-                        </span>
-                      </div>
+                  ) : (
+                    <div>
+                      <p className="text-[14.5px] font-semibold">Choose a CSV file</p>
+                      <p className="mt-0.5 text-[12.5px] text-ink-3">or drop it here</p>
                     </div>
-                  </div>
-
-                  {/* Raw JSON View */}
-                  <div className={`font-mono text-[10px] leading-relaxed bg-[#0c0c0e] border border-zinc-900 rounded-2xl p-5 text-zinc-300 ${activeViewMode === 'json' ? 'block' : 'hidden lg:block'}`}>
-                    <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-3 text-zinc-500 font-bold uppercase tracking-wider text-[8px]">
-                      <span className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5 text-emerald-400" /> Supabase SQL JSON row</span>
-                      <span>Row 1 of 1</span>
-                    </div>
-                    <pre className="overflow-x-auto whitespace-pre-wrap text-emerald-400 max-h-[220px]">
-                      {JSON.stringify(lastIngestedResult, null, 2)}
-                    </pre>
-                  </div>
-
+                  )}
                 </div>
-              )}
-
-              {/* Batch CSV records */}
-              {batchResults.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 dark:text-zinc-500 border-b dark:border-zinc-900 pb-2">
-                    <span>Batch Signals Preview (First {batchResults.length} Ingested Items)</span>
-                    <span className="text-emerald-500 flex items-center gap-1">✓ Saved successfully to 'feedback' table</span>
-                  </div>
-                  
-                  {batchResults.map((record, index) => (
-                    <div key={record.id} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                      
-                      {/* Pretty Styled View */}
-                      <div className={`space-y-4 ${activeViewMode === 'pretty' ? 'block' : 'hidden lg:block'}`}>
-                        <div className="bg-slate-50/60 dark:bg-zinc-900/30 border border-slate-100 dark:border-zinc-900 p-4 rounded-xl flex flex-col justify-between h-full">
-                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-900/80 pb-2 mb-2 flex-wrap gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-500/10">
-                                {record.source}
-                              </span>
-                              <span className="text-xs font-semibold text-slate-650 dark:text-zinc-300">
-                                Row #{record.metadata?.row_number}
-                              </span>
-                            </div>
-                            <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500">
-                              {new Date(record.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed font-semibold italic bg-white dark:bg-zinc-950 p-3 rounded-lg border border-slate-100 dark:border-zinc-900 mb-2">
-                            "{record.content}"
-                          </p>
-
-                          <div className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 flex justify-between gap-2">
-                            <span>File: {record.metadata?.file_name}</span>
-                            <span>Type: {record.metadata?.submission_type}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Raw JSON View */}
-                      <div className={`font-mono text-[9px] leading-relaxed bg-[#0c0c0e] border border-zinc-900 rounded-xl p-4 text-zinc-300 ${activeViewMode === 'json' ? 'block' : 'hidden lg:block'}`}>
-                        <div className="flex items-center justify-between border-b border-zinc-900 pb-2 mb-2 text-zinc-500 font-bold uppercase tracking-wider text-[8px]">
-                          <span>Supabase Row #{index + 1}</span>
-                          <span>{record.id}</span>
-                        </div>
-                        <pre className="overflow-x-auto whitespace-pre-wrap text-emerald-400">
-                          {JSON.stringify(record, null, 2)}
-                        </pre>
-                      </div>
-
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-
-            {/* Action trigger to progress downstream */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100 dark:border-zinc-900">
-              <div>
-                <h4 className="text-sm font-extrabold text-slate-800 dark:text-zinc-200">Signals Successfully Stored!</h4>
-                <p className="text-[10px] sm:text-xs text-slate-400 dark:text-zinc-500 font-semibold mt-0.5">
-                  Ready for the next layers: Semantic embedding, proximity clustering, and agile requirements decomposition.
+                <p id="csv-hint" className="field-hint">
+                  Needs a <code className="font-mono text-[12px] text-ink-2">content</code> column. Optional: author, source, date.
+                  Up to 5 MB.
                 </p>
               </div>
-              
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <Link
-                  href="/dashboard"
-                  className="group flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-150 text-white dark:text-black font-bold text-xs px-5 py-3.5 rounded-xl shadow-md transition-all duration-300 active:scale-[0.98]"
-                >
-                  <span>Navigate to Clusters Board</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
+
+              <button type="submit" disabled={ingestingCsv || !csvFile} className="btn btn-primary btn-lg w-full">
+                {ingestingCsv && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                {ingestingCsv ? 'Importing…' : 'Import CSV'}
+              </button>
+            </form>
+          </section>
+        </div>
+
+        {hasResults && (
+          <section aria-labelledby="saved-title" className="card app-enter overflow-hidden">
+            <div className="flex flex-col gap-4 border-b border-line p-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
+              <div>
+                <h2 id="saved-title" className="section-title">
+                  Saved
+                </h2>
+                <p className="mt-1 text-[14px] text-ink-2">Exactly what was stored, row by row.</p>
+              </div>
+              <div className="seg self-start sm:self-auto" role="group" aria-label="View as">
+                <button type="button" aria-pressed={activeViewMode === 'pretty'} onClick={() => setActiveViewMode('pretty')} className="seg-btn">
+                  <List className="h-3.5 w-3.5" aria-hidden /> Readable
+                </button>
+                <button type="button" aria-pressed={activeViewMode === 'json'} onClick={() => setActiveViewMode('json')} className="seg-btn">
+                  <Code className="h-3.5 w-3.5" aria-hidden /> JSON
+                </button>
               </div>
             </div>
 
-          </div>
-        )}
+            <div className="p-6 md:px-8">
+              {lastIngestedResult &&
+                (activeViewMode === 'pretty' ? (
+                  <div className="space-y-5">
+                    <blockquote className="font-display text-[26px] leading-snug">“{lastIngestedResult.content}”</blockquote>
+                    <dl className="grid gap-x-8 gap-y-3 border-t border-line pt-5 text-[14px] sm:grid-cols-2">
+                      {[
+                        ['Source', lastIngestedResult.source],
+                        ['Author', lastIngestedResult.author],
+                        ['Saved', new Date(lastIngestedResult.timestamp).toLocaleString()],
+                        ['Submitted as', lastIngestedResult.metadata?.submission_type],
+                      ].map(([k, v]) => (
+                        <div key={k} className="flex gap-3">
+                          <dt className="w-28 shrink-0 text-ink-3">{k}</dt>
+                          <dd className="min-w-0 break-words">{v}</dd>
+                        </div>
+                      ))}
+                      <div className="flex gap-3 sm:col-span-2">
+                        <dt className="w-28 shrink-0 text-ink-3">ID</dt>
+                        <dd className="min-w-0 break-all font-mono text-[12.5px] text-ink-2">{lastIngestedResult.id}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                ) : (
+                  <pre className="code-block max-h-[360px]">{JSON.stringify(lastIngestedResult, null, 2)}</pre>
+                ))}
 
-    </div>
+              {batchResults.length > 0 &&
+                (activeViewMode === 'pretty' ? (
+                  <div>
+                    <p className="mb-3 text-[13px] text-ink-3">Showing the first {batchResults.length} imported rows.</p>
+                    <ul className="divide-y divide-line border-y border-line">
+                      {batchResults.map((record) => (
+                        <li key={record.id} className="grid gap-1.5 py-4 sm:grid-cols-[88px_minmax(0,1fr)_auto] sm:gap-5">
+                          <span className="font-mono text-[12px] leading-6 text-ink-3">row {record.metadata?.row_number ?? '—'}</span>
+                          <p className="text-[14.5px] leading-relaxed">{record.content}</p>
+                          <p className="text-[12.5px] leading-6 text-ink-3 sm:text-right">
+                            {record.metadata?.file_name}
+                            <span className="mx-1.5" aria-hidden>
+                              ·
+                            </span>
+                            {new Date(record.timestamp).toLocaleTimeString()}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <pre className="code-block max-h-[480px]">{JSON.stringify(batchResults, null, 2)}</pre>
+                ))}
+            </div>
+
+            <div className="flex flex-col gap-4 border-t border-line bg-paper/60 p-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
+              <p className="text-[14px] text-ink-2">Next, run clustering from your inbox to group this with everything else.</p>
+              <Link href="/dashboard" className="btn btn-primary shrink-0">
+                Go to inbox <ArrowRight className="arrow h-4 w-4" aria-hidden />
+              </Link>
+            </div>
+          </section>
+        )}
+      </div>
     </ProtectedRoute>
   );
 }

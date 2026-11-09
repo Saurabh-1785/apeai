@@ -9,16 +9,9 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthContext';
-import {
-  ArrowLeft,
-  Check,
-  FileText,
-  Sparkles,
-  Loader2,
-  AlertTriangle,
-  ExternalLink,
-  GitMerge,
-} from 'lucide-react';
+import { BackLink, LoadingState, PageHeader } from '@/components/app/primitives';
+import { Check, Sparkles, Loader2, AlertTriangle, ExternalLink, GitMerge, Archive } from 'lucide-react';
+
 
 interface Step {
   title: string;
@@ -195,26 +188,18 @@ function PipelineTracker() {
 
   // ─── Render ─────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-10 h-10 text-slate-900 dark:text-zinc-300 animate-spin" />
-        <p className="text-sm font-semibold text-slate-500">Loading pipeline stepper...</p>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading pipeline…" />;
 
   if (error || !cluster) {
     return (
-      <div className="space-y-4">
-        <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
-          <ArrowLeft className="w-4 h-4" /> Back to Inbox
-        </Link>
-        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl space-y-2">
-          <h3 className="font-bold flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" /> Pipeline Error
-          </h3>
-          <p className="text-sm">{error || 'Cluster not found'}</p>
+      <div className="space-y-6">
+        <BackLink href="/dashboard">Inbox</BackLink>
+        <div role="alert" className="alert alert-error">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-semibold">Couldn&apos;t load this pipeline</p>
+            <p>{error || 'Cluster not found'}</p>
+          </div>
         </div>
       </div>
     );
@@ -233,190 +218,214 @@ function PipelineTracker() {
 
   const steps: Step[] = [
     {
-      title: 'Feedback Clustered',
-      description: 'Signals grouped together via vector database similarity search.',
+      title: 'Feedback clustered',
+      description: 'Similar feedback grouped together by meaning.',
       status: 'complete',
       detail: `${cluster.feedback_count ?? 0} feedback item(s)` +
         (typeof cluster.confidence_score === 'number' && cluster.confidence_score > 0
-          ? ` · confidence ${Math.round(cluster.confidence_score)}%`
+          ? ` · confidence ${Math.round(cluster.confidence_score)}`
           : ''),
     },
     {
-      title: 'AI Cluster Summary',
-      description: 'Summarize signals into clean semantic definitions.',
+      title: 'Summary',
+      description: 'A short, plain description of the problem this cluster represents.',
       status: hasSummary ? 'complete' : 'active',
-      actionLabel: 'Generate Summary',
+      actionLabel: 'Write summary',
       action: runStep('summary', 'AI summary', runSummary),
       loading: running === 'summary',
     },
     {
-      title: 'Business Requirements (BRD)',
-      description: 'Generate a Business Requirements Document.',
+      title: 'Business requirements (BRD)',
+      description: 'Why this matters: the problem, impact, goals and success metrics.',
       status: hasBRD ? 'complete' : !hasSummary ? 'pending' : 'active',
-      actionLabel: 'Generate BRD',
+      actionLabel: 'Draft BRD',
       action: runStep('brd', 'BRD', runBRD),
       loading: running === 'brd',
     },
     {
-      title: 'Product Requirements (PRD)',
-      description: 'Draft technical and scope specifications.',
+      title: 'Product requirements (PRD)',
+      description: 'What to build: flows, requirements, constraints and milestones.',
       status: hasPRD ? 'complete' : !hasBRD ? 'pending' : 'active',
-      actionLabel: 'Generate PRD',
+      actionLabel: 'Draft PRD',
       action: runStep('prd', 'PRD', () => runPRD(documents)),
       loading: running === 'prd',
     },
     {
-      title: 'Agile User Stories',
-      description: 'Generate formatted stories with explicit acceptance criteria.',
+      title: 'User stories',
+      description: 'Stories with explicit acceptance criteria.',
       status: hasStories ? 'complete' : !hasPRD ? 'pending' : 'active',
       detail: hasStories ? `${stories.length} story(ies)` : undefined,
-      actionLabel: 'Draft User Stories',
+      actionLabel: 'Draft stories',
       action: runStep('stories', 'User stories', () => runStories(documents)),
       loading: running === 'stories',
     },
     {
-      title: 'Technical Task Breakdown',
-      description: 'Subdivide every story into concrete engineering tasks.',
+      title: 'Task breakdown',
+      description: 'Frontend, backend and testing tasks for every story.',
       status: hasTasks ? 'complete' : !hasStories ? 'pending' : 'active',
       detail: hasStories ? `${stories.length - missingTasks.length} of ${stories.length} stories broken down` : undefined,
-      actionLabel: missingTasks.length < stories.length ? `Break Down Remaining (${missingTasks.length})` : 'Break Down Tasks',
+      actionLabel: missingTasks.length < stories.length ? `Break down remaining (${missingTasks.length})` : 'Break down tasks',
       action: runStep('tasks', 'Task breakdown', () => runTasks(documents)),
       loading: running === 'tasks',
     },
   ];
 
+  const completedCount = steps.filter((s) => s.status === 'complete').length;
+
   return (
-    <div className="space-y-8">
-      <div className="space-y-4">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Inbox
-        </Link>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{cluster.title}</h2>
-              <StatusBadge status={cluster.status} />
-            </div>
-            <p className="text-sm text-slate-500 mt-1">Workflow Stepper: Trigger and monitor document pipelines.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={triggerGenerateAll}
-              disabled={busy || allDone || isArchived}
-              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-all disabled:opacity-50 border border-transparent disabled:border-slate-200"
-            >
-              {running === 'all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {running === 'all' ? taskProgress ? `Tasks: ${taskProgress}` : 'Generating...' : allDone ? 'All Generated' : 'Generate All'}
+    <div className="space-y-10">
+      <PageHeader
+        back={<BackLink href="/dashboard">Inbox</BackLink>}
+        eyebrow="cluster · pipeline"
+        title={cluster.title}
+        meta={<StatusBadge status={cluster.status} />}
+        description="Run each step on its own, or generate everything at once. Nothing is published from here."
+        actions={
+          <>
+            <button type="button" onClick={triggerGenerateAll} disabled={busy || allDone || isArchived} className="btn btn-primary">
+              {running === 'all' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : allDone ? <Check className="h-4 w-4" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+              {running === 'all' ? (taskProgress ? `Tasks: ${taskProgress}` : 'Generating…') : allDone ? 'All generated' : 'Generate all'}
             </button>
-            <Link
-              href={`/review/${clusterId}`}
-              className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-lg shadow-sm transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Review & Edit Drafts
+            <Link href={`/review/${clusterId}`} className="btn btn-secondary">
+              Review drafts
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {isArchived && (
-        <div className="bg-zinc-50 border border-zinc-200 text-zinc-600 p-4 rounded-xl text-sm font-semibold">
-          This cluster was merged into an existing ticket and is archived.
+        <div role="status" className="alert alert-info">
+          <Archive className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>This cluster was merged into an existing ticket and is archived.</p>
         </div>
       )}
 
       {!isArchived && duplicates.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
-          <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            Possible duplicates: {duplicates.length} published ticket(s) look similar
-          </h3>
-          <ul className="space-y-2">
+        <section aria-labelledby="dups-title" className="card overflow-hidden">
+          <div className="flex items-start gap-3 border-b border-line bg-warning/[0.07] px-6 py-4">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+            <div>
+              <h2 id="dups-title" className="text-[15px] font-semibold">
+                This might already be ticketed
+              </h2>
+              <p className="mt-0.5 text-[13.5px] text-ink-2">
+                {duplicates.length === 1 ? 'A published ticket looks' : `${duplicates.length} published tickets look`} similar. You can
+                add this feedback to {duplicates.length === 1 ? 'it' : 'one of them'} instead of filing a new ticket.
+              </p>
+            </div>
+          </div>
+          <ul className="divide-y divide-line">
             {duplicates.map((dup) => (
-              <li key={dup.ticket_link_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border border-amber-100 rounded-lg p-3">
+              <li key={dup.ticket_link_id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate">{dup.document_title || dup.external_id}</p>
-                  <p className="text-[11px] text-slate-500">
-                    {dup.external_id} · {Math.round(dup.similarity * 100)}% similar
+                  <p className="truncate text-[14.5px] font-semibold">{dup.document_title || dup.external_id}</p>
+                  <p className="mt-0.5 text-[12.5px] text-ink-3">
+                    <span className="font-mono">{dup.external_id}</span> · {Math.round(dup.similarity * 100)}% similar
                     {dup.external_status ? ` · ${dup.external_status}` : ''}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   {dup.external_url && (
-                    <a href={dup.external_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900">
-                      Open <ExternalLink className="w-3 h-3" />
+                    <a href={dup.external_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                      Open <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                     </a>
                   )}
-                  <button
-                    onClick={() => handleAppend(dup)}
-                    disabled={appendingTo !== null || busy}
-                    className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg disabled:opacity-50"
-                  >
-                    {appendingTo === dup.document_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <GitMerge className="w-3.5 h-3.5" />}
-                    Append to this ticket
+                  <button type="button" onClick={() => handleAppend(dup)} disabled={appendingTo !== null || busy} className="btn btn-secondary btn-sm">
+                    {appendingTo === dup.document_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <GitMerge className="h-3.5 w-3.5" aria-hidden />}
+                    Add to this ticket
                   </button>
                 </div>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Pipeline Stepper</h3>
+      <section aria-labelledby="steps-title" className="card overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-line px-6 py-5 sm:flex-row sm:items-center sm:justify-between md:px-8">
+          <h2 id="steps-title" className="section-title">
+            Steps
+          </h2>
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-ink-2">
+              {completedCount} of {steps.length} done
+            </span>
+            <span className="h-1.5 w-28 overflow-hidden rounded-full bg-stone" aria-hidden>
+              <span
+                className="block h-full origin-left rounded-full bg-ink transition-transform duration-300"
+                style={{ transform: `scaleX(${completedCount / steps.length})` }}
+              />
+            </span>
+          </div>
+        </div>
 
-        <div className="relative border-l border-slate-200 ml-4 pl-8 space-y-8 py-2">
+        <ol className="px-6 py-7 md:px-8">
           {steps.map((step, idx) => {
             const isComplete = step.status === 'complete';
             const isActive = step.status === 'active' && !isArchived;
             const isPending = step.status === 'pending';
             const spinning = step.loading || (running === 'all' && isActive);
+            const isLast = idx === steps.length - 1;
 
             return (
-              <div key={step.title} className="relative">
-                <div className={`absolute -left-[41px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border transition-colors ${
-                  isComplete ? 'bg-slate-900 text-white border-slate-900' :
-                  isActive ? 'bg-white text-slate-900 border-slate-900 shadow-sm shadow-slate-950/5' :
-                  'bg-white text-slate-400 border-slate-200'
-                }`}>
-                  {isComplete ? <Check className="w-3.5 h-3.5" /> : <span>{idx + 1}</span>}
-                </div>
+              <li key={step.title} className={`relative grid grid-cols-[32px_minmax(0,1fr)] gap-5 ${isLast ? '' : 'pb-8'}`}>
+                {!isLast && (
+                  <span
+                    aria-hidden
+                    className={`absolute bottom-0 left-[15.5px] top-9 w-px ${isComplete ? 'bg-ink' : 'bg-line'}`}
+                  />
+                )}
+                <span
+                  className={`relative z-[1] flex h-8 w-8 items-center justify-center rounded-full border text-[12px] font-semibold transition-colors duration-200 ${
+                    isComplete
+                      ? 'border-ink bg-ink text-paper'
+                      : isActive
+                      ? 'border-ink bg-card text-ink'
+                      : 'border-line bg-card text-ink-3'
+                  }`}
+                  aria-hidden
+                >
+                  {isComplete ? (
+                    <Check className="h-4 w-4" strokeWidth={2.5} />
+                  ) : spinning ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <span className="font-mono">{idx + 1}</span>
+                  )}
+                </span>
 
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <h4 className={`font-bold ${
-                      isComplete ? 'text-slate-800' : isActive ? 'text-slate-900 font-extrabold' : 'text-slate-400'
-                    }`}>{step.title}</h4>
-                    <p className="text-xs text-slate-500 max-w-xl leading-relaxed">{step.description}</p>
-                    {step.detail && <p className="text-[11px] font-semibold text-slate-400">{step.detail}</p>}
+                <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                  <div className="min-w-0 space-y-1">
+                    <h3 className={`text-[16px] font-semibold leading-snug ${isPending ? 'text-ink-3' : 'text-ink'}`}>
+                      {step.title}
+                      <span className="sr-only">
+                        {isComplete ? ' (complete)' : isActive ? ' (ready to run)' : ' (waiting on earlier steps)'}
+                      </span>
+                    </h3>
+                    <p className={`max-w-xl text-[14px] leading-relaxed ${isPending ? 'text-ink-3' : 'text-ink-2'}`}>{step.description}</p>
+                    {step.detail && <p className="font-mono text-[12px] text-ink-3">{step.detail}</p>}
                   </div>
 
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     {isActive && step.action && (
-                      <button
-                        onClick={step.action}
-                        disabled={busy}
-                        className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-colors border border-slate-900 disabled:opacity-50"
-                      >
-                        {spinning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      <button type="button" onClick={step.action} disabled={busy} className="btn btn-primary btn-sm">
+                        {spinning ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Sparkles className="h-3.5 w-3.5" aria-hidden />}
                         {step.loading && taskProgress ? taskProgress : step.actionLabel}
                       </button>
                     )}
                     {isComplete && (
-                      <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold">
-                        <Check className="w-3.5 h-3.5" /> Complete
+                      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-success">
+                        <Check className="h-3.5 w-3.5" aria-hidden /> Done
                       </span>
                     )}
-                    {isPending && (
-                      <span className="text-slate-400 text-xs font-medium">Waiting on previous steps...</span>
-                    )}
+                    {isPending && <span className="text-[13px] text-ink-3">Waiting</span>}
                   </div>
                 </div>
-              </div>
+              </li>
             );
           })}
-        </div>
-      </div>
+        </ol>
+      </section>
     </div>
   );
 }

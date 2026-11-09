@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const tone = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 module.exports = {
   darkMode: 'class',
   content: [
@@ -7,30 +9,52 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
       colors: {
-        background: "#f8fafc",
-        foreground: "#0f172a",
-        card: "#ffffff",
-        border: "#e2e8f0",
-        primary: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
+        // App tokens (light/dark values live in app/globals.css)
+        paper: tone('paper'),
+        card: tone('card'),
+        stone: tone('stone'),
+        line: { DEFAULT: tone('line'), strong: tone('line-strong') },
+        ink: { DEFAULT: tone('ink'), 2: tone('ink-2'), 3: tone('ink-3') },
+        brand: tone('brand'),
+        success: tone('success'),
+        warning: tone('warning'),
+        danger: tone('danger'),
+        info: tone('info'),
+        ai: tone('ai'),
+        night: tone('night'),
+        moon: tone('moon'),
+
+        // Landing page tokens (defined in components/landing/landing.css)
+        lp: {
+          ink: 'var(--lp-ink)',
+          ink2: 'var(--lp-ink-2)',
+          ink3: 'var(--lp-ink-3)',
+          paper: 'var(--lp-paper)',
+          stone: 'var(--lp-stone)',
+          card: 'var(--lp-card)',
+          line: 'var(--lp-line)',
+          linestrong: 'var(--lp-line-strong)',
+          night: 'var(--lp-night)',
+          dusk: 'var(--lp-dusk)',
+          void: 'var(--lp-void)',
+          moon: 'var(--lp-moon)',
+          moon2: 'var(--lp-moon-2)',
+          nightline: 'var(--lp-night-line)',
+          coral: 'var(--lp-coral)',
+          blue: 'var(--lp-blue)',
+          green: 'var(--lp-green)',
+          amber: 'var(--lp-amber)',
+          violet: 'var(--lp-violet)',
+          coralL: 'var(--lp-coral-l)',
+          blueL: 'var(--lp-blue-l)',
+          greenL: 'var(--lp-green-l)',
+          amberL: 'var(--lp-amber-l)',
         },
-        slate: {
-          50: "#f8fafc",
-          100: "#f1f5f9",
-          200: "#e2e8f0",
-          300: "#cbd5e1",
-          400: "#94a3b8",
-          500: "#64748b",
-          600: "#475569",
-          700: "#334155",
-          800: "#1e293b",
-          900: "#0f172a",
-        }
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out forwards',
@@ -54,8 +78,8 @@ module.exports = {
         drawLine: {
           '0%': { strokeDashoffset: '100%' },
           '100%': { strokeDashoffset: '0%' },
-        }
-      }
+        },
+      },
     },
   },
   plugins: [],

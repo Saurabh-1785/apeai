@@ -2,43 +2,205 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * ApeAI app design tokens. Same warm editorial palette as the landing page,
+ * with a dark theme. Values are RGB channels so Tailwind can apply alpha
+ * (e.g. bg-ink/5). Colors are wired up in tailwind.config.js.
+ */
 @layer base {
+  :root {
+    --paper: 244 243 239;
+    --card: 251 250 247;
+    --stone: 230 228 221;
+    --line: 216 214 206;
+    --line-strong: 185 182 171;
+    --ink: 29 29 27;
+    --ink-2: 85 84 78;
+    --ink-3: 111 110 103;
+
+    --brand: 184 67 47;
+    --success: 47 113 73;
+    --warning: 154 90 20;
+    --danger: 184 50 40;
+    --info: 47 109 179;
+    --ai: 133 80 194;
+
+    /* always-dark surfaces (auth panel, code blocks) */
+    --night: 38 38 43;
+    --moon: 244 243 239;
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+    color-scheme: light;
+  }
+
+  .dark {
+    --paper: 20 20 22;
+    --card: 28 28 31;
+    --stone: 38 38 43;
+    --line: 48 48 54;
+    --line-strong: 72 72 80;
+    --ink: 244 243 239;
+    --ink-2: 181 180 172;
+    --ink-3: 143 142 135;
+
+    --brand: 255 134 112;
+    --success: 127 211 157;
+    --warning: 255 183 102;
+    --danger: 255 128 112;
+    --info: 130 184 255;
+    --ai: 196 160 255;
+    color-scheme: dark;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-black dark:text-zinc-100 antialiased;
+    @apply bg-paper text-ink antialiased;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    text-rendering: optimizeLegibility;
   }
+
+  p { text-wrap-style: pretty; }
+
+  ::selection { background: rgb(var(--brand) / 0.85); color: #fff; }
+
+  :focus-visible { outline: 2px solid rgb(var(--ink)); outline-offset: 2px; }
 }
 
-@layer utilities {
-  .premium-grid-light {
-    background-image: 
-      linear-gradient(to right, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 75%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 75%, transparent 100%);
+@layer components {
+  /* ── Type ──────────────────────────────────────────────── */
+  .font-display {
+    font-family: var(--font-display), Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap-style: balance;
+  }
+  .eyebrow {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: rgb(var(--ink-3));
+  }
+  .page-title {
+    @apply font-display text-ink;
+    font-size: clamp(2.25rem, 4.5vw, 3.25rem);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+  }
+  .section-title {
+    @apply font-display text-ink;
+    font-size: 1.75rem;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
   }
 
-  .premium-grid-dark {
-    background-image: 
-      linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 75%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 75%, transparent 100%);
+  /* ── Surfaces ──────────────────────────────────────────── */
+  .card { @apply rounded-2xl border border-line bg-card; }
+  .code-block {
+    @apply overflow-x-auto rounded-xl p-4 font-mono text-[12px] leading-relaxed;
+    background: #18181b;
+    color: #e6e4dd;
+    border: 1px solid rgb(255 255 255 / 0.06);
   }
+
+  /* ── Buttons ───────────────────────────────────────────── */
+  .btn {
+    @apply relative inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-transparent px-4 text-sm font-semibold;
+    transition:
+      background-color 200ms var(--ease-out),
+      border-color 200ms var(--ease-out),
+      color 200ms var(--ease-out),
+      transform 150ms var(--ease-out);
+  }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled, .btn[aria-disabled='true'] { @apply cursor-not-allowed opacity-50; }
+  .btn-sm { @apply h-8 gap-1.5 rounded-lg px-3 text-[13px]; }
+  .btn-lg { @apply h-12 px-6 text-[15px]; }
+  .btn-icon { @apply w-10 px-0; }
+  .btn-sm.btn-icon { @apply w-8; }
+
+  .btn-primary { @apply bg-ink text-paper; }
+  .btn-primary:hover:not(:disabled) { background: rgb(var(--ink) / 0.86); }
+  .btn-secondary { @apply border-line-strong bg-card text-ink; }
+  .btn-secondary:hover:not(:disabled) { @apply border-ink/40 bg-stone; }
+  .btn-ghost { @apply text-ink-2; }
+  .btn-ghost:hover:not(:disabled) { @apply bg-stone text-ink; }
+  .btn-danger { @apply border-danger/35 bg-card text-danger; }
+  .btn-danger:hover:not(:disabled) { @apply border-danger/60 bg-danger/[0.07]; }
+
+  .btn .arrow { transition: transform 200ms var(--ease-out); }
+  .btn:hover:not(:disabled) .arrow { transform: translateX(3px); }
+
+  .link { @apply font-semibold text-ink underline decoration-line-strong underline-offset-4; transition: text-decoration-color 200ms; }
+  .link:hover { @apply decoration-ink; }
+
+  /* ── Forms ─────────────────────────────────────────────── */
+  .field-label { @apply mb-1.5 block text-[13px] font-semibold text-ink-2; }
+  .field-hint { @apply mt-1.5 text-[12.5px] leading-snug text-ink-3; }
+  .field {
+    @apply w-full rounded-[10px] border border-line bg-card px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink-3/80;
+    transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+  }
+  .field:hover:not(:disabled):not([readonly]) { @apply border-line-strong; }
+  .field:focus { @apply border-ink outline-none; box-shadow: 0 0 0 3px rgb(var(--ink) / 0.1); }
+  .field:disabled, .field[readonly] { @apply cursor-default bg-stone/50 text-ink-2; }
+  .field[aria-invalid='true'] { @apply border-danger; }
+  .field[aria-invalid='true']:focus { box-shadow: 0 0 0 3px rgb(var(--danger) / 0.15); }
+  textarea.field { @apply resize-y leading-relaxed; }
+
+  .checkbox {
+    @apply h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border border-line-strong bg-card;
+    transition: background-color 150ms, border-color 150ms;
+  }
+  .checkbox:checked {
+    @apply border-ink bg-ink;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+  .dark .checkbox:checked {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' stroke='%23141416' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  /* ── Segmented control ─────────────────────────────────── */
+  .seg { @apply inline-flex items-center gap-0.5 rounded-[10px] border border-line bg-stone/60 p-0.5; }
+  .seg-btn {
+    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-ink-2;
+    transition: background-color 150ms, color 150ms, box-shadow 150ms;
+  }
+  .seg-btn:hover { @apply text-ink; }
+  .seg-btn[aria-pressed='true'] { @apply bg-card text-ink; box-shadow: 0 0 0 1px rgb(var(--line)); }
+
+  /* ── Alerts ────────────────────────────────────────────── */
+  .alert { @apply flex items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-relaxed; }
+  .alert-error { @apply border-danger/30 bg-danger/[0.06] text-danger; }
+  .alert-success { @apply border-success/30 bg-success/[0.07] text-success; }
+  .alert-warning { @apply border-warning/30 bg-warning/[0.07] text-warning; }
+  .alert-info { @apply border-line bg-stone/50 text-ink-2; }
+
+  /* ── Nav ───────────────────────────────────────────────── */
+  .nav-item {
+    @apply flex h-10 items-center gap-3 rounded-[10px] border border-transparent px-3 text-[14.5px] font-medium text-ink-2;
+    transition: background-color 150ms, color 150ms, border-color 150ms;
+  }
+  .nav-item:hover { @apply bg-stone/70 text-ink; }
+  .nav-item[aria-current='page'] { @apply border-line bg-card text-ink; }
+
+  /* ── Motion ────────────────────────────────────────────── */
+  .app-enter { animation: app-enter 300ms var(--ease-out) both; }
+  .app-enter-stagger > * { animation: app-enter 300ms var(--ease-out) both; }
+  .app-enter-stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .app-enter-stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .app-enter-stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .app-enter-stagger > *:nth-child(n + 5) { animation-delay: 160ms; }
 }
 
-@keyframes pulseGlow {
-  0%, 100% {
-    transform: translate(-50%, 0) scale(1);
-    opacity: 0.25;
-  }
-  50% {
-    transform: translate(-50%, 4%) scale(1.08);
-    opacity: 0.35;
-  }
+@keyframes app-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: none; }
 }
+@keyframes app-fade { from { opacity: 0; } to { opacity: 1; } }
 
-.animate-pulse-glow {
-  animation: pulseGlow 12s ease-in-out infinite;
+@media (prefers-reduced-motion: reduce) {
+  .app-enter, .app-enter-stagger > * { animation: app-fade 150ms linear both; animation-delay: 0ms !important; }
+  .btn, .field, .seg-btn, .nav-item { transition-duration: 1ms; }
 }

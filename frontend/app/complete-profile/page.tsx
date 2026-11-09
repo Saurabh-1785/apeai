@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Calendar, ArrowRight, Loader2, AlertTriangle, CheckCircle2, User as UserIcon } from 'lucide-react';
+import { ArrowRight, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
+import AuthShell from '@/components/app/AuthShell';
 
 export default function CompleteProfilePage() {
   const [dob, setDob] = useState('');
@@ -13,7 +14,7 @@ export default function CompleteProfilePage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
-  
+
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
 
   useEffect(() => {
@@ -70,76 +71,66 @@ export default function CompleteProfilePage() {
   if (authLoading) return null;
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
-      <div className="max-w-md w-full space-y-8 bg-white dark:bg-[#0c0c0e] p-8 md:p-10 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl shadow-slate-900/5">
-        <div className="text-center flex flex-col items-center">
-          <div className="bg-slate-900 dark:bg-white text-white dark:text-black p-3 rounded-2xl mb-4 shadow-lg">
-            <UserIcon className="w-8 h-8" />
-          </div>
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Almost there</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400 font-medium">
-            Please complete your profile to continue
-          </p>
+    <AuthShell
+      eyebrow="one more step"
+      title={success ? 'All set.' : 'Almost there.'}
+      description={
+        success
+          ? 'Taking you to your inbox…'
+          : 'Tell us who you are, so your team can see who approved what.'
+      }
+    >
+      {error && (
+        <div role="alert" className="alert alert-error mb-6">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>{error}</p>
         </div>
+      )}
 
-        {error && (
-          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-xl flex items-start gap-3 text-sm font-medium">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <p>{error}</p>
+      {success ? (
+        <div role="status" className="alert alert-success">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>Profile saved.</p>
+        </div>
+      ) : (
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="name" className="field-label">
+              Full name
+            </label>
+            <input
+              id="name"
+              type="text"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="field"
+              placeholder="Jane Doe"
+            />
           </div>
-        )}
 
-        {success ? (
-          <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 px-4 py-6 rounded-xl flex flex-col items-center gap-3 text-center animate-fade-in">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-            <div>
-              <p className="font-bold text-lg">Profile Updated!</p>
-              <p className="text-sm opacity-80 mt-1">Taking you to your dashboard...</p>
-            </div>
+          <div>
+            <label htmlFor="dob" className="field-label">
+              Date of birth
+            </label>
+            <input
+              id="dob"
+              type="date"
+              autoComplete="bday"
+              required
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              className="field"
+            />
           </div>
-        ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1 block">Full Name</label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400 dark:text-zinc-500" />
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all font-medium"
-                    placeholder="Jane Doe"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1 block">Date of Birth</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400 dark:text-zinc-500" />
-                  <input
-                    type="date"
-                    required
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-zinc-900/50 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-800 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 dark:focus:ring-white/20 focus:border-slate-900 dark:focus:border-zinc-700 transition-all font-medium"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !dob}
-              className="group w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-bold py-3.5 rounded-xl disabled:opacity-50 transition-all duration-300 shadow-md"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Complete Profile</span>}
-              {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg mt-2 w-full">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+            {loading ? 'Saving…' : 'Save and continue'}
+            {!loading && <ArrowRight className="arrow h-4 w-4" aria-hidden />}
+          </button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

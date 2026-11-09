@@ -1,20 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { User, Mail, Calendar, Info, Camera, Loader2, Save, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { PageHeader } from '@/components/app/primitives';
+import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
-  
+
   const [fullName, setFullName] = useState('');
   const [dob, setDob] = useState('');
   const [about, setAbout] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  
+
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -31,7 +31,7 @@ export default function ProfilePage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    
+
     setLoading(true);
     setMessage(null);
 
@@ -50,7 +50,7 @@ export default function ProfilePage() {
     if (error) {
       setMessage({ type: 'error', text: error.message });
     } else {
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setMessage({ type: 'success', text: 'Profile saved.' });
       await refreshProfile();
     }
     setLoading(false);
@@ -73,8 +73,6 @@ export default function ProfilePage() {
       // Storage policy only allows writes under "<user id>/"
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
-      // Assuming there's a public bucket named 'avatars'
-      // If it doesn't exist, this might fail, so we might fallback to Base64 or external links
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
@@ -92,147 +90,116 @@ export default function ProfilePage() {
     }
   };
 
+  const initial = (fullName || user?.email || 'U').charAt(0).toUpperCase();
+
   return (
     <ProtectedRoute>
-      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-16">
-        
-        <div className="pb-4 border-b border-slate-200/60 dark:border-zinc-900/80">
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Profile Settings</h2>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 font-semibold">
-            Manage your personal information, avatar, and preferences.
-          </p>
-        </div>
+      <div className="mx-auto max-w-[760px] space-y-10 pb-8">
+        <PageHeader
+          eyebrow="account · profile"
+          title="Profile"
+          description="How you appear to your team when you review and approve work."
+        />
 
         {message && (
-          <div className={`px-4 py-3 rounded-xl flex items-start gap-3 text-sm font-medium ${
-            message.type === 'error' 
-              ? 'bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-950/30 dark:border-rose-900/50 dark:text-rose-400'
-              : 'bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400'
-          }`}>
-            {message.type === 'error' ? <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" /> : <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />}
+          <div role={message.type === 'error' ? 'alert' : 'status'} className={`alert ${message.type === 'error' ? 'alert-error' : 'alert-success'}`}>
+            {message.type === 'error' ? (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            ) : (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            )}
             <p>{message.text}</p>
           </div>
         )}
 
-        <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm">
-          <form onSubmit={handleSave} className="space-y-8">
-            
-            {/* Avatar Section */}
-            <div className="flex flex-col sm:flex-row items-center gap-6 pb-8 border-b border-slate-100 dark:border-zinc-900">
-              <div className="relative group">
-                <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-zinc-900 border-2 border-slate-200 dark:border-zinc-800 overflow-hidden flex items-center justify-center">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-10 h-10 text-slate-400 dark:text-zinc-500" />
-                  )}
-                </div>
-                <label className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 rounded-full cursor-pointer transition-opacity duration-200">
-                  {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={uploadAvatar}
-                    disabled={uploading}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                </label>
-              </div>
-              <div className="text-center sm:text-left">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Profile Photo</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-xs">
-                  We recommend a square image at least 256x256 pixels. Click the avatar to upload.
-                </p>
-              </div>
+        <form onSubmit={handleSave} className="card overflow-hidden">
+          {/* Photo */}
+          <div className="flex flex-col gap-5 border-b border-line p-6 sm:flex-row sm:items-center md:px-8">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-line bg-stone">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Your profile photo" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center font-display text-[34px] text-ink-2">{initial}</span>
+              )}
+              {uploading && (
+                <span className="absolute inset-0 flex items-center justify-center bg-ink/50">
+                  <Loader2 className="h-5 w-5 animate-spin text-paper" aria-hidden />
+                </span>
+              )}
             </div>
-
-            {/* Form Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* User ID (Read-only) */}
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">User ID</label>
-                <div className="relative">
-                  <Info className="absolute left-3.5 top-3 w-4 h-4 text-slate-400 dark:text-zinc-600" />
-                  <input
-                    type="text"
-                    readOnly
-                    value={user?.id || ''}
-                    className="w-full text-xs font-semibold bg-slate-100 dark:bg-zinc-900/80 text-slate-500 dark:text-zinc-500 border border-slate-200 dark:border-zinc-900 rounded-xl pl-10 pr-4 py-3 cursor-not-allowed"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400 font-semibold">Your unique system identifier. Cannot be changed.</p>
-              </div>
-
-              {/* Email (Read-only for now) */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-400 dark:text-zinc-600" />
-                  <input
-                    type="email"
-                    readOnly
-                    value={user?.email || ''}
-                    className="w-full text-xs font-semibold bg-slate-100 dark:bg-zinc-900/80 text-slate-500 dark:text-zinc-500 border border-slate-200 dark:border-zinc-900 rounded-xl pl-10 pr-4 py-3 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              {/* Full Name */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-3 w-4 h-4 text-slate-400 dark:text-zinc-600" />
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Jane Doe"
-                    className="w-full text-xs font-semibold bg-slate-50/50 dark:bg-zinc-900/40 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-900 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 transition-all duration-300"
-                  />
-                </div>
-              </div>
-
-              {/* Date of Birth */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Date of Birth</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3.5 top-3 w-4 h-4 text-slate-400 dark:text-zinc-600" />
-                  <input
-                    type="date"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    className="w-full text-xs font-semibold bg-slate-50/50 dark:bg-zinc-900/40 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-900 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 transition-all duration-300"
-                  />
-                </div>
-              </div>
+            <div className="flex-1">
+              <p className="text-[15px] font-semibold">Photo</p>
+              <p className="mt-0.5 text-[13px] text-ink-2">A square image works best. PNG or JPG, up to 2 MB.</p>
             </div>
+            <label className={`btn btn-secondary cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 ${uploading ? 'pointer-events-none opacity-50' : ''}`}>
+              {uploading ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Upload photo'}
+              <input type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="sr-only" />
+            </label>
+          </div>
 
-            {/* About Description */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">About You</label>
-              <textarea
-                value={about}
-                onChange={(e) => setAbout(e.target.value)}
-                placeholder="Tell us a little bit about yourself, your role, and what you build..."
-                rows={4}
-                className="w-full text-xs font-semibold bg-slate-50/50 dark:bg-zinc-900/40 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-900 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-800 dark:focus:border-zinc-700 transition-all duration-300 resize-none leading-relaxed"
+          {/* Details */}
+          <div className="grid gap-5 p-6 md:grid-cols-2 md:px-8">
+            <div>
+              <label htmlFor="name" className="field-label">
+                Full name
+              </label>
+              <input
+                id="name"
+                type="text"
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Jane Doe"
+                className="field"
               />
             </div>
-
-            <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-zinc-900">
-              <button
-                type="submit"
-                disabled={loading}
-                className="group flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-black text-sm font-bold py-3 px-8 rounded-xl disabled:opacity-50 active:scale-[0.99] transition-all duration-200"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                <span>Save Changes</span>
-              </button>
+            <div>
+              <label htmlFor="dob" className="field-label">
+                Date of birth
+              </label>
+              <input id="dob" type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="field" />
             </div>
-            
-          </form>
-        </div>
+            <div className="md:col-span-2">
+              <label htmlFor="about" className="field-label">
+                About you
+              </label>
+              <textarea
+                id="about"
+                value={about}
+                onChange={(e) => setAbout(e.target.value)}
+                placeholder="Your role and what you work on."
+                rows={4}
+                className="field"
+              />
+            </div>
+          </div>
+
+          {/* Account (read-only) */}
+          <div className="grid gap-5 border-t border-line p-6 md:grid-cols-2 md:px-8">
+            <div>
+              <label htmlFor="email" className="field-label">
+                Email
+              </label>
+              <input id="email" type="email" readOnly value={user?.email || ''} className="field" />
+            </div>
+            <div>
+              <label htmlFor="uid" className="field-label">
+                User ID
+              </label>
+              <input id="uid" type="text" readOnly value={user?.id || ''} aria-describedby="uid-hint" className="field font-mono text-[13px]" />
+              <p id="uid-hint" className="field-hint">
+                Assigned by the system. It can&apos;t be changed.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end border-t border-line bg-paper/60 p-5 md:px-8">
+            <button type="submit" disabled={loading || uploading} className="btn btn-primary">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              {loading ? 'Saving…' : 'Save profile'}
+            </button>
+          </div>
+        </form>
       </div>
     </ProtectedRoute>
   );

@@ -1,373 +1,298 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ToastProvider } from '@/components/ui/ToastProvider';
-import {
-  Inbox,
-  Settings,
-  ShieldAlert,
-  Cpu,
-  Sun,
-  Moon,
-  Menu,
-  X,
-  ArrowRight,
-  Upload,
-  User,
-  LogOut,
-  ChevronDown,
-  Compass
-} from 'lucide-react';
+import { Inbox, Upload, Plug, Sun, Moon, Menu, X, User, LogOut, ChevronDown, ArrowUpRight } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import { Wordmark } from './app/primitives';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
 }
 
+const NAV = [
+  {
+    href: '/dashboard',
+    label: 'Inbox',
+    icon: Inbox,
+    isActive: (p: string) => p === '/dashboard' || p.startsWith('/pipeline') || p.startsWith('/review'),
+  },
+  { href: '/upload', label: 'Add feedback', icon: Upload, isActive: (p: string) => p === '/upload' },
+  { href: '/integrations', label: 'Integrations', icon: Plug, isActive: (p: string) => p === '/integrations' },
+];
+
+const AUTH_PATHS = ['/login', '/signup', '/verify-otp', '/complete-profile'];
+
+function breadcrumb(pathname: string): { label: string; href?: string }[] {
+  if (pathname.startsWith('/pipeline')) return [{ label: 'Inbox', href: '/dashboard' }, { label: 'Pipeline' }];
+  if (pathname.startsWith('/review')) return [{ label: 'Inbox', href: '/dashboard' }, { label: 'Review' }];
+  const map: Record<string, string> = {
+    '/dashboard': 'Inbox',
+    '/upload': 'Add feedback',
+    '/integrations': 'Integrations',
+    '/profile': 'Profile',
+  };
+  return [{ label: map[pathname] ?? 'Workspace' }];
+}
+
+function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  return (
+    <>
+      <div className="flex h-16 shrink-0 items-center px-6">
+        <Link href="/dashboard" onClick={onNavigate} aria-label="ApeAI inbox" className="rounded-sm">
+          <Wordmark />
+        </Link>
+      </div>
+
+      <nav aria-label="Workspace" className="flex-1 px-3 pt-4">
+        <p className="eyebrow px-3 pb-2">workspace</p>
+        <ul className="space-y-1">
+          {NAV.map(({ href, label, icon: Icon, isActive }) => {
+            const active = isActive(pathname);
+            return (
+              <li key={href}>
+                <Link href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined} className="nav-item">
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-ink' : 'text-ink-3'}`} aria-hidden />
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="space-y-4 p-4">
+        <div className="rounded-xl border border-line bg-card p-4">
+          <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
+            Human review is on
+          </p>
+          <p className="mt-1.5 text-[12.5px] leading-snug text-ink-3">Nothing reaches Jira until someone approves it.</p>
+        </div>
+        <Link
+          href="/"
+          onClick={onNavigate}
+          className="flex items-center gap-1.5 px-1 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
+        >
+          ApeAI home <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+      </div>
+    </>
+  );
+}
+
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  
   const { user, profile, signOut } = useAuth();
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const drawerButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Initialize theme from localStorage or system preference
+  // The inline script in app/layout.tsx already applied the theme class.
   useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
-    setTheme(initialTheme);
-
-    if (initialTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
+  useEffect(() => {
+    setDrawerOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
 
-    if (nextTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  // Close the user menu on outside click or Escape.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!userMenuRef.current?.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setUserMenuOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
+
+  // Escape closes the mobile drawer and returns focus to its button.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setDrawerOpen(false);
+      drawerButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    try {
+      localStorage.setItem('theme', next);
+    } catch {
+      // storage unavailable: the choice lasts for this page only
     }
+    document.documentElement.classList.toggle('dark', next === 'dark');
   };
 
-  // If this is the introductory landing page or an auth page, we want a clean, full-screen canvas
-  const isLandingPage = pathname === '/';
-  const isAuthPage = ['/login', '/signup', '/verify-otp', '/complete-profile'].includes(pathname);
-
-  // Prevent flash before hydration completes
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Cpu className="w-10 h-10 text-slate-900 dark:text-white animate-spin" />
-          <span className="text-sm font-semibold tracking-wide text-slate-400">Loading ApeAI...</span>
-        </div>
-      </div>
-    );
+  // The landing page and sign-in flows bring their own full-screen layouts.
+  if (pathname === '/' || AUTH_PATHS.includes(pathname)) {
+    return <>{children}</>;
   }
 
-  if (isLandingPage || isAuthPage) {
-    return (
-      <ToastProvider>
-        <div className="min-h-screen bg-white dark:bg-[#000000] text-slate-900 dark:text-zinc-100 transition-colors duration-300">
-          {/* Landing Header */}
-          <header className="sticky top-0 z-50 backdrop-blur-md bg-white/70 dark:bg-[#000000]/70 border-b border-slate-100 dark:border-zinc-900 px-6 py-4 transition-colors">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2.5 group">
-                <div className="bg-slate-900 dark:bg-white group-hover:bg-black dark:group-hover:bg-zinc-200 text-white dark:text-black p-2 rounded-xl transition-all duration-300 flex items-center justify-center shadow-lg shadow-slate-900/10 dark:shadow-white/10">
-                  <Cpu className="w-5 h-5" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white transition-colors">ApeAI</h1>
-                  <p className="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest -mt-1 transition-colors">Product Ops</p>
-                </div>
-              </Link>
+  const crumbs = breadcrumb(pathname);
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Account';
+  const initial = (profile?.full_name || user?.email || 'U').charAt(0).toUpperCase();
 
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={toggleTheme}
-                  aria-label="Toggle Theme"
-                  className="p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900 hover:text-slate-900 dark:hover:text-white transition-all duration-300"
-                >
-                  {theme === 'light' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
-                </button>
-                  {user ? (
-                    <Link
-                      href="/dashboard"
-                      className="hidden sm:inline-flex items-center gap-1.5 bg-slate-900 dark:bg-white hover:bg-black dark:hover:bg-zinc-200 text-white dark:text-black text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-md shadow-slate-900/10 hover:shadow-slate-900/20"
-                    >
-                      Dashboard
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  ) : (
-                    <Link
-                      href="/login"
-                      className="hidden sm:inline-flex items-center gap-1.5 bg-slate-900 dark:bg-white hover:bg-black dark:hover:bg-zinc-200 text-white dark:text-black text-sm font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-md shadow-slate-900/10 hover:shadow-slate-900/20"
-                    >
-                      Log In
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  )}
-              </div>
-            </div>
-          </header>
-
-          <main className="animate-fade-in">{children}</main>
-        </div>
-      </ToastProvider>
-    );
-  }
-
-  // Dashboard layout configuration
   return (
-    <ToastProvider>
-      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 flex transition-colors duration-300">
+    <div className="min-h-screen bg-paper text-ink md:pl-[248px]">
+      {/* Sidebar — desktop */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-line bg-paper md:flex">
+        <SidebarContent pathname={pathname} />
+      </aside>
 
-        {/* Sidebar Navigation - Desktop */}
-        <aside className="w-64 border-r border-slate-200 dark:border-zinc-900 bg-white dark:bg-[#09090b] hidden md:flex flex-col fixed h-full z-20 transition-colors">
-          {/* Branding */}
-          <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-100 dark:border-zinc-900">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="bg-slate-900 dark:bg-white text-white dark:text-black p-1.5 rounded-lg flex items-center justify-center">
-                <Cpu className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">ApeAI</h1>
-                <p className="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest -mt-1">Product Ops</p>
-              </div>
-            </Link>
-          </div>
-
-          {/* Navigation Items */}
-          <nav className="flex-1 py-6 px-4 space-y-1.5">
-            <Link
-              href="/upload"
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/upload'
-                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
-                }`}
-            >
-              <Upload className={`w-4 h-4 ${pathname === '/upload' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
-              Upload Signals
-            </Link>
-            <Link
-              href="/dashboard"
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/dashboard'
-                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
-                }`}
-            >
-              <Inbox className={`w-4 h-4 ${pathname === '/dashboard' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
-              Feedback Inbox
-            </Link>
-            <Link
-              href="/integrations"
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${pathname === '/integrations'
-                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white font-semibold'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-zinc-900'
-                }`}
-            >
-              <Settings className={`w-4 h-4 ${pathname === '/integrations' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
-              Integrations
-            </Link>
-
-            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-zinc-900">
-              <Link
-                href="/"
-                className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
-              >
-                <Compass className="w-3.5 h-3.5" />
-                View Intro & Docs
-              </Link>
-            </div>
-          </nav>
-
-          {/* Bottom Info Banner */}
-          <div className="p-4 border-t border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-950/20">
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-500 font-medium">
-              <ShieldAlert className="w-3.5 h-3.5 text-slate-900 dark:text-white animate-pulse-subtle" />
-              <span>Human-in-the-Loop Gate</span>
-            </div>
-          </div>
+      {/* Sidebar — mobile drawer */}
+      <div
+        className="fixed inset-0 z-50 md:hidden"
+        style={{ visibility: drawerOpen ? 'visible' : 'hidden', transition: `visibility 0s linear ${drawerOpen ? '0ms' : '200ms'}` }}
+      >
+        <div
+          className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${drawerOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden
+        />
+        <aside
+          id="app-drawer"
+          aria-label="Navigation"
+          className={`absolute inset-y-0 left-0 flex w-[272px] flex-col border-r border-line bg-paper transition-transform duration-200 ${
+            drawerOpen ? 'translate-x-0 ease-out' : '-translate-x-full ease-in'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close navigation"
+            className="btn btn-ghost btn-icon btn-sm absolute right-3 top-4"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+          <SidebarContent pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
         </aside>
+      </div>
 
-        {/* Sidebar Navigation - Mobile Drawer */}
-        {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 md:hidden backdrop-blur-sm animate-fade-in" onClick={() => setMobileMenuOpen(false)}>
-            <aside
-              className="w-64 h-full bg-white dark:bg-[#09090b] border-r border-slate-200 dark:border-zinc-900 flex flex-col p-6 animate-slide-up"
-              onClick={(e) => e.stopPropagation()}
+      <div className="flex min-h-screen flex-col">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-line bg-paper px-4 sm:px-6 md:px-10">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              ref={drawerButtonRef}
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              aria-controls="app-drawer"
+              className="btn btn-secondary btn-icon btn-sm md:hidden"
             >
-              <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-zinc-900">
-                <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-                  <Cpu className="w-5 h-5 text-slate-900 dark:text-white" />
-                  <span className="font-bold text-slate-900 dark:text-white">ApeAI</span>
-                </Link>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1 rounded-lg border border-slate-200 dark:border-zinc-800"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <nav className="flex-1 py-6 space-y-1.5">
-                <Link
-                  href="/upload"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/upload'
-                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
-                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
-                    }`}
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload Signals
-                </Link>
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard'
-                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
-                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
-                    }`}
-                >
-                  <Inbox className="w-4 h-4" />
-                  Feedback Inbox
-                </Link>
-                <Link
-                  href="/integrations"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/integrations'
-                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white'
-                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900'
-                    }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  Integrations
-                </Link>
-                <Link
-                  href="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 dark:text-zinc-500 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
-                >
-                  <Compass className="w-3.5 h-3.5" />
-                  View Intro Page
-                </Link>
-              </nav>
-
-              <div className="pt-4 border-t border-slate-100 dark:border-zinc-900">
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                  <ShieldAlert className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-                  <span>Human-in-the-Loop Gate</span>
-                </div>
-              </div>
-            </aside>
-          </div>
-        )}
-
-        {/* Main Application Container */}
-        <div className="flex-1 md:pl-64 flex flex-col min-h-screen">
-          {/* Top Header */}
-          <header className="h-16 border-b border-slate-200 dark:border-zinc-900 bg-white dark:bg-[#000000] sticky top-0 z-10 flex items-center justify-between px-6 md:px-8 transition-colors">
-
-            {/* Sidebar toggle for mobile */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="p-2 md:hidden border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg"
-                aria-label="Open sidebar"
-              >
-                <Menu className="w-4 h-4" />
-              </button>
-
-              <div className="text-xs text-slate-400 hidden sm:block">
-                Server Status: <span className="font-semibold text-slate-900 dark:text-white">Online</span>
-              </div>
-            </div>
-
-            {/* Actions Bar */}
-            <div className="flex items-center gap-4">
-              {/* Theme Toggle inside App */}
-              <button
-                onClick={toggleTheme}
-                aria-label="Toggle Theme"
-                className="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900 hover:text-slate-900 dark:hover:text-white transition-all duration-200"
-              >
-                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
-
-              {/* User Dropdown */}
-              {user && (
-                <div className="relative">
-                  <button 
-                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-zinc-900 p-1.5 rounded-xl transition-colors"
-                  >
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="User Avatar" className="h-8 w-8 rounded-full object-cover border border-slate-200 dark:border-zinc-800" />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-slate-900 dark:bg-white flex items-center justify-center text-xs font-bold text-white dark:text-black">
-                        {profile?.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
-                      </div>
-                    )}
-                    <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 hidden sm:inline">
-                      {profile?.full_name || profile?.user_id || user.email?.split('@')[0]}
-                    </span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-
-                  {profileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#09090b] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-lg shadow-slate-900/10 py-2 z-50 animate-slide-up">
-                      <div className="px-4 py-2 border-b border-slate-100 dark:border-zinc-900 mb-2">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{profile?.full_name || 'ApeAI User'}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-zinc-500 truncate">{user.email}</p>
-                      </div>
-                      <Link 
-                        href="/profile" 
-                        onClick={() => setProfileDropdownOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900 hover:text-slate-900 dark:hover:text-white transition-colors"
-                      >
-                        <User className="w-4 h-4" />
-                        Profile Settings
+              <Menu className="h-4 w-4" aria-hidden />
+            </button>
+            <nav aria-label="Breadcrumb" className="min-w-0">
+              <ol className="flex items-center gap-2 text-[14px]">
+                {crumbs.map((c, i) => (
+                  <li key={c.label} className="flex min-w-0 items-center gap-2">
+                    {i > 0 && <span className="text-ink-3" aria-hidden>/</span>}
+                    {c.href ? (
+                      <Link href={c.href} className="font-medium text-ink-3 transition-colors hover:text-ink">
+                        {c.label}
                       </Link>
-                      <button 
-                        onClick={() => {
-                          setProfileDropdownOpen(false);
-                          signOut();
+                    ) : (
+                      <span aria-current="page" className="truncate font-semibold text-ink">
+                        {c.label}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+              title={theme === 'light' ? 'Dark theme' : 'Light theme'}
+              className="btn btn-ghost btn-icon"
+            >
+              {theme === 'light' ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
+            </button>
+
+            {user && (
+              <div ref={userMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  className="flex h-10 items-center gap-2 rounded-[10px] px-1.5 transition-colors duration-150 hover:bg-stone sm:pr-2.5"
+                >
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="h-7 w-7 rounded-full border border-line object-cover" />
+                  ) : (
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[12px] font-semibold text-paper">
+                      {initial}
+                    </span>
+                  )}
+                  <span className="hidden max-w-[140px] truncate text-[14px] font-semibold sm:inline">{displayName}</span>
+                  <ChevronDown
+                    className={`hidden h-3.5 w-3.5 text-ink-3 transition-transform duration-200 sm:block ${userMenuOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  />
+                </button>
+
+                {userMenuOpen && (
+                  <div
+                    role="menu"
+                    className="card absolute right-0 mt-2 w-60 p-1.5 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.35)]"
+                    style={{ animation: 'app-enter 150ms var(--ease-out) both' }}
+                  >
+                    <div className="border-b border-line px-3 pb-3 pt-2">
+                      <p className="truncate text-[14px] font-semibold">{profile?.full_name || 'Your account'}</p>
+                      <p className="truncate text-[12.5px] text-ink-3">{user.email}</p>
+                    </div>
+                    <div className="pt-1.5">
+                      <Link href="/profile" role="menuitem" className="nav-item h-9 text-[14px]">
+                        <User className="h-4 w-4 text-ink-3" aria-hidden /> Profile
+                      </Link>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={async () => {
+                          setUserMenuOpen(false);
+                          await signOut();
                           router.push('/login');
                         }}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        className="nav-item h-9 w-full text-[14px] text-danger hover:text-danger"
                       >
-                        <LogOut className="w-4 h-4" />
-                        Log Out
+                        <LogOut className="h-4 w-4" aria-hidden /> Log out
                       </button>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </header>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </header>
 
-          {/* Dynamic Pages Area */}
-          <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+        <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6 md:px-10 md:py-12">
+          <div key={pathname} className="app-enter">
             {children}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
-    </ToastProvider>
+    </div>
   );
 }
