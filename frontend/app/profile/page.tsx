@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { PageHeader } from '@/components/app/primitives';
 import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { friendlyAuthError } from '@/lib/authErrors';
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
@@ -48,7 +49,7 @@ export default function ProfilePage() {
       .upsert({ id: user.id, email: user.email, ...updates });
 
     if (error) {
-      setMessage({ type: 'error', text: error.message });
+      setMessage({ type: 'error', text: friendlyAuthError(error, 'profile').message });
     } else {
       setMessage({ type: 'success', text: 'Profile saved.' });
       await refreshProfile();
@@ -62,13 +63,13 @@ export default function ProfilePage() {
       setMessage(null);
 
       if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('You must select an image to upload.');
+        throw new Error('Choose an image to upload.');
       }
 
-      if (!user) throw new Error('You must be signed in to upload an avatar.');
+      if (!user) throw new Error('Your session has ended. Sign in again to upload a photo.');
       const file = event.target.files[0];
-      if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
-      if (file.size > 2 * 1024 * 1024) throw new Error('Avatar must be 2 MB or smaller.');
+      if (!file.type.startsWith('image/')) throw new Error('That file isn’t an image. Choose a JPG, PNG, GIF or WebP.');
+      if (file.size > 2 * 1024 * 1024) throw new Error('That image is over 2 MB. Choose a smaller one, or resize it first.');
       const fileExt = (file.name.split('.').pop() || 'png').toLowerCase();
       // Storage policy only allows writes under "<user id>/"
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
@@ -78,13 +79,14 @@ export default function ProfilePage() {
         .upload(filePath, file);
 
       if (uploadError) {
-        throw new Error(`Avatar upload failed: ${uploadError.message}`);
+        setMessage({ type: 'error', text: friendlyAuthError(uploadError, 'avatar').message });
+        return;
       }
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       setAvatarUrl(data.publicUrl);
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Error uploading image' });
+      setMessage({ type: 'error', text: error?.message || "We couldn't upload that photo. Try again, or choose a different image." });
     } finally {
       setUploading(false);
     }

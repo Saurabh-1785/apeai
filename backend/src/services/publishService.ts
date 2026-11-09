@@ -12,77 +12,114 @@ import { BadRequestError, ConflictError, UpstreamError } from '../utils/errors';
 
 type DbRow = Record<string, unknown>;
 
+const asText = (v: unknown): string => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
+const asList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)).trim()).filter(Boolean) : [];
+
+/** "### Heading" + bullets, skipped entirely when the list is empty. */
+function section(heading: string, items: string[]): string {
+  return items.length ? `### ${heading}\n${items.map((i) => `- ${i}`).join('\n')}\n\n` : '';
+}
+function paragraph(heading: string, text: string): string {
+  return text ? `### ${heading}\n${text}\n\n` : '';
+}
+
+/**
+ * Converts a document into the tracker-neutral shape publishers consume:
+ * title, a small-markdown description, priority, labels, and the issue
+ * types to try in order (the publisher picks the first the project has).
+ */
 export function toUniversalFormat(doc: DbRow): DbRow {
   const docType = doc['type'] as string;
   const content = (doc['content'] ?? {}) as DbRow;
+  const title = asText(doc['title']) || asText(content['title']);
+  const footer = '\nCreated by ApeAI from customer feedback, after human review.';
 
   if (docType === 'story') {
-    const title = (doc['title'] ?? content['title'] ?? 'Unnamed Story') as string;
-    const userRole = (content['user_role'] ?? '') as string;
-    const req = (content['requirement'] ?? '') as string;
-    const benefit = (content['benefit'] ?? '') as string;
-    const acList = (content['acceptance_criteria'] ?? []) as string[];
-    const priority = (content['priority'] ?? 'Medium') as string;
-
-    let description = `${userRole}\n${req}\n${benefit}\n\n### Acceptance Criteria\n`;
-    for (const ac of acList) {
-      description += `- ${ac}\n`;
-    }
-
+    const narrative = [content['user_role'], content['requirement'], content['benefit']].map(asText).filter(Boolean).join(' ');
     return {
-      title,
-      description: description.trim(),
-      priority,
-      labels: ['user-story', 'story'],
+      title: title || 'User story',
+      description: (
+        (narrative ? `${narrative}\n\n` : '') +
+        section('Acceptance criteria', asList(content['acceptance_criteria'])) +
+        footer
+      ).trim(),
+      priority: asText(content['priority']) || 'Medium',
+      labels: ['apeai', 'user-story'],
+      issue_types: ['Story', 'Task'],
       assignee: null,
     };
   }
 
   if (docType === 'task') {
-    const title = (doc['title'] ?? 'Unnamed Task') as string;
-    const storyTitle = (content['story_title'] ?? '') as string;
-    const frontendTasks = (content['frontend_tasks'] ?? []) as string[];
-    const backendTasks = (content['backend_tasks'] ?? []) as string[];
-    const testingTasks = (content['testing_tasks'] ?? []) as string[];
-    const complexity = (content['estimated_complexity'] ?? 'Medium') as string;
-    const dependencies = (content['dependencies'] ?? []) as string[];
-
-    let description = `**Story Ref:** ${storyTitle}\n\n`;
-    if (frontendTasks.length) {
-      description += '### Frontend Tasks\n';
-      frontendTasks.forEach((t) => (description += `- [ ] ${t}\n`));
-      description += '\n';
-    }
-    if (backendTasks.length) {
-      description += '### Backend Tasks\n';
-      backendTasks.forEach((t) => (description += `- [ ] ${t}\n`));
-      description += '\n';
-    }
-    if (testingTasks.length) {
-      description += '### Testing Tasks\n';
-      testingTasks.forEach((t) => (description += `- [ ] ${t}\n`));
-      description += '\n';
-    }
-    description += `**Complexity:** ${complexity}\n`;
-    if (dependencies.length) {
-      description += `**Dependencies:** ${dependencies.join(', ')}\n`;
-    }
-
+    const storyTitle = asText(content['story_title']);
+    const deps = asList(content['dependencies']);
+    let description = storyTitle ? `**Story:** ${storyTitle}\n\n` : '';
+    description += section('Frontend', asList(content['frontend_tasks']));
+    description += section('Backend', asList(content['backend_tasks']));
+    description += section('Testing', asList(content['testing_tasks']));
+    description += `**Estimated complexity:** ${asText(content['estimated_complexity']) || 'Medium'}\n`;
+    if (deps.length) description += `**Depends on:** ${deps.join(', ')}\n`;
     return {
-      title,
-      description: description.trim(),
+      title: title || 'Technical task',
+      description: (description + footer).trim(),
       priority: 'Medium',
-      labels: ['technical-task', 'task'],
+      labels: ['apeai', 'technical-task'],
+      issue_types: ['Task', 'Story'],
       assignee: null,
     };
   }
 
-  // Generic fallback
+  if (docType === 'brd') {
+    return {
+      title: title || 'Business requirements',
+      description: (
+        paragraph('Problem', asText(content['problem_statement'])) +
+        paragraph('Business impact', asText(content['business_impact'])) +
+        section('Goals', asList(content['goals'])) +
+        section('Stakeholders', asList(content['target_stakeholders'])) +
+        section('Success metrics', asList(content['success_metrics'])) +
+        footer
+      ).trim(),
+      priority: 'Medium',
+      labels: ['apeai', 'brd'],
+      issue_types: ['Task', 'Story'],
+      assignee: null,
+    };
+  }
+
+  if (docType === 'prd') {
+    return {
+      title: title || 'Product requirements',
+      description: (
+        section('User flows', asList(content['user_flows'])) +
+        section('Functional requirements', asList(content['functional_requirements'])) +
+        section('Non-functional requirements', asList(content['non_functional_requirements'])) +
+        section('Technical constraints', asList(content['technical_constraints'])) +
+        section('Milestones', asList(content['milestones'])) +
+        footer
+      ).trim(),
+      priority: 'Medium',
+      labels: ['apeai', 'prd'],
+      issue_types: ['Task', 'Story'],
+      assignee: null,
+    };
+  }
+
+  // Summary or anything else: readable key/value sections instead of raw JSON.
+  let description = asText(content['summary'] ?? doc['summary']);
+  description = description ? `${description}\n\n` : '';
+  for (const [key, value] of Object.entries(content)) {
+    if (['title', 'summary'].includes(key)) continue;
+    const heading = key.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+    description += Array.isArray(value) ? section(heading, asList(value)) : paragraph(heading, asText(value));
+  }
   return {
-    title: (doc['title'] ?? 'AI Document') as string,
-    description: (content['summary'] ?? doc['summary'] ?? JSON.stringify(content)) as string,
-    priority: 'Medium',
-    labels: docType ? [docType] : [],
+    title: title || 'ApeAI document',
+    description: (description + footer).trim(),
+    priority: asText(content['priority']) || 'Medium',
+    labels: ['apeai', ...(docType ? [docType] : [])],
+    issue_types: ['Task', 'Story'],
     assignee: null,
   };
 }

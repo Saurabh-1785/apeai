@@ -159,6 +159,17 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
+### 5. A test account (optional)
+Skip email verification while developing. This creates `admin@apeai.test` with a
+confirmed email and a random password, then prints it. Run it again to reset the password.
+```bash
+cd backend
+npm run create-user
+# TEST_USER_EMAIL=you@company.com TEST_USER_PASSWORD='…' npm run create-user
+```
+It uses the service_role key on your machine only. Signing in from the browser
+still needs `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the root `.env`.
+
 ### Deploying the frontend (e.g. Vercel)
 Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and either
 `NEXT_PUBLIC_API_URL=https://<your-backend>` or `BACKEND_URL=https://<your-backend>`.

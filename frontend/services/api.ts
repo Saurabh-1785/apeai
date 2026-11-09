@@ -18,18 +18,56 @@ async function getAuthToken(): Promise<string | undefined> {
   return session?.access_token;
 }
 
-/** Turns a failed response into an Error carrying the backend's `detail` message. */
+const SERVER_TROUBLE =
+  "Something went wrong on our side, so that didn't go through. Try again in a moment. If it keeps happening, the ApeAI server may be down.";
+const SERVER_UNREACHABLE = "We can't reach the ApeAI server right now. Try again in a moment.";
+
+/** Plain-language fallback per status, used when the backend's own message isn't fit to show. */
+const STATUS_MESSAGE: Record<number, string> = {
+  401: 'Your session has ended. Sign in again to continue.',
+  403: "You don't have access to that. Ask your workspace admin if you think you should.",
+  404: "We couldn't find that. It may have been deleted, or the link is out of date.",
+  413: 'That file is too large to upload. Choose a smaller file and try again.',
+  429: 'Too many requests in a short time. Wait a moment, then try again.',
+};
+
+/**
+ * Turns a failed response into an Error a person can act on.
+ * 4xx: the backend's `detail` (validation messages written for users).
+ * 5xx: a plain fallback — raw server errors are logged, never shown.
+ */
 async function toError(response: Response): Promise<Error> {
-  let message = `Request failed with status ${response.status}`;
+  const status = response.status;
+  let detail: string | undefined;
+  let isJson = false;
   try {
     const data = await response.json();
-    message = data.detail || data.message || message;
+    isJson = true;
+    detail = data.detail || data.message;
   } catch {
-    // body was not JSON
+    // body was not JSON (e.g. the dev proxy couldn't reach the backend)
   }
-  if (response.status === 401) message = 'Your session has expired. Please sign in again.';
+
+  let message: string;
+  if (status >= 500 && !isJson) {
+    // The backend never answered: the /api proxy or a gateway replied instead.
+    message = SERVER_UNREACHABLE;
+    if (process.env.NODE_ENV === 'development') {
+      message += ' (Dev only: is the backend running? Start it with `cd backend && npm run dev`.)';
+    }
+  } else if (status >= 500) {
+    if (process.env.NODE_ENV !== 'production') console.warn(`[api] ${status}`, detail ?? '(no detail)');
+    // 502 = a tracker (Jira) refused or failed; the backend writes those messages for users.
+    const userFacing = (status === 502 && detail) || (status === 503 && detail?.startsWith('Database unavailable') && detail);
+    message = userFacing || SERVER_TROUBLE;
+  } else if (STATUS_MESSAGE[status] && (status === 401 || !detail || detail === 'Not found')) {
+    message = STATUS_MESSAGE[status];
+  } else {
+    message = detail || STATUS_MESSAGE[status] || "That request didn't go through. Check what you entered and try again.";
+  }
+
   const err = new Error(message) as Error & { status?: number };
-  err.status = response.status;
+  err.status = status;
   return err;
 }
 
@@ -43,7 +81,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch (cause) {
+    // fetch only rejects when no response arrived at all (offline, DNS, CORS, server down)
+    if (process.env.NODE_ENV !== 'production') console.warn('[api] network error', cause);
+    throw new Error("We couldn't reach the ApeAI server. Check your internet connection, then try again.");
+  }
   if (!response.ok) throw await toError(response);
   if (response.status === 204) return {} as T;
   return response.json() as Promise<T>;

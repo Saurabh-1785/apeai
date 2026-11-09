@@ -4,16 +4,18 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowRight, Loader2, AlertTriangle, MailCheck } from 'lucide-react';
+import { ArrowRight, Loader2, MailCheck } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 import AuthShell from '@/components/app/AuthShell';
+import { FormError } from '@/components/app/FormError';
+import { friendlyAuthError, type FriendlyError } from '@/lib/authErrors';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [dob, setDob] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
@@ -27,33 +29,38 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError({ message: "The two passwords don't match. Re-type the second one so they're identical." });
       return;
     }
     if (!dob) {
-      setError("Date of birth is required");
+      setError({ message: 'Add your date of birth to continue.' });
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          dob: dob
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            dob: dob
+          }
         }
-      }
-    });
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        setError(friendlyAuthError(error, 'signup', { email: email.trim() }));
+        setLoading(false);
+      } else {
+        // Show success message telling them to check email for the verification link
+        setSuccess(true);
+      }
+    } catch (err) {
+      setError(friendlyAuthError(err, 'signup'));
       setLoading(false);
-    } else {
-      // Show success message telling them to check email for the verification link
-      setSuccess(true);
     }
   };
 
@@ -79,12 +86,7 @@ export default function SignupPage() {
         </>
       }
     >
-      {error && (
-        <div role="alert" className="alert alert-error mb-6">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <p>{error}</p>
-        </div>
-      )}
+      <FormError error={error} />
 
       {success ? (
         <div className="space-y-6">

@@ -16,6 +16,8 @@ import {
   deleteIntegration,
 } from '../services/documentService';
 import { IntegrationCreate, IntegrationUpdate } from '../types/storage';
+import { checkJiraConnection, normalizeJiraUrl } from '../integrations/jira/client';
+import { BadRequestError } from '../utils/errors';
 
 export const integrationsRouter = Router();
 integrationsRouter.use(requireAuth);
@@ -39,14 +41,40 @@ function integrationToResponse(i: DbRow) {
 integrationsRouter.post('/', async (req: Request, res: Response, next: NextFunction) => {
   const body = req.body as IntegrationCreate;
   try {
+    let apiUrl = body.api_url;
+    let projectId = body.project_id;
+    let config = (body.config ?? {}) as Record<string, unknown>;
+
+    if (body.type === 'jira') {
+      // Credentials are later sent to this URL, so only Atlassian Cloud hosts are accepted.
+      apiUrl = normalizeJiraUrl(body.api_url);
+      projectId = String(body.project_id ?? '').trim().toUpperCase();
+      const email = String(config['email'] ?? '').trim();
+      if (!projectId) throw new BadRequestError('Enter the Jira project key, for example APE.');
+      if (!email) throw new BadRequestError('Enter the email address you sign in to Jira with.');
+      if (!body.api_key?.trim()) throw new BadRequestError('Paste a Jira API token.');
+
+      config = { ...config, email };
+      // Check the token and project now, so problems show up here and not at publish time.
+      // Dry run skips the check: it never talks to Jira.
+      if (config['dry_run'] !== true) {
+        try {
+          const check = await checkJiraConnection({ apiUrl, email, apiKey: body.api_key.trim(), projectKey: projectId });
+          config = { ...config, account_name: check.accountName, project_name: check.projectName };
+        } catch (err) {
+          throw new BadRequestError(err instanceof Error ? err.message : String(err));
+        }
+      }
+    }
+
     const integration = await createIntegration({
       userId: req.userId!,
       intType: body.type,
       name: body.name,
-      apiKey: body.api_key,
-      apiUrl: body.api_url,
-      projectId: body.project_id,
-      config: body.config,
+      apiKey: body.api_key?.trim(),
+      apiUrl,
+      projectId,
+      config,
     });
     res.status(201).json(integrationToResponse(integration));
   } catch (err) {

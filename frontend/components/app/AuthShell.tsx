@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Wordmark } from './primitives';
+import { SetupNotice } from './FormError';
 
 const FRAGMENTS: { text: string; className: string; style: React.CSSProperties }[] = [
   { text: '“can we export this to csv??”', className: 'font-display italic text-[22px]', style: { left: '9%', top: '22%' } },
@@ -69,7 +70,10 @@ export default function AuthShell({
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1 className="mt-3 font-display text-[44px] leading-[1.02] tracking-[-0.025em] text-ink">{title}</h1>
           {description && <p className="mt-3 text-[15.5px] leading-relaxed text-ink-2">{description}</p>}
-          <div className="mt-9">{children}</div>
+          <div className="mt-9">
+            <SetupNotice />
+            {children}
+          </div>
         </div>
       </main>
     </div>

@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowRight, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 import AuthShell from '@/components/app/AuthShell';
+import { FormError } from '@/components/app/FormError';
+import { friendlyAuthError, type FriendlyError } from '@/lib/authErrors';
 
 export default function CompleteProfilePage() {
   const [dob, setDob] = useState('');
   const [fullName, setFullName] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
@@ -37,7 +39,7 @@ export default function CompleteProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dob) {
-      setError("Date of birth is required");
+      setError({ message: 'Add your date of birth to continue.' });
       return;
     }
 
@@ -57,7 +59,7 @@ export default function CompleteProfilePage() {
       });
 
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error, 'profile'));
       setLoading(false);
     } else {
       await refreshProfile();
@@ -80,12 +82,7 @@ export default function CompleteProfilePage() {
           : 'Tell us who you are, so your team can see who approved what.'
       }
     >
-      {error && (
-        <div role="alert" className="alert alert-error mb-6">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <p>{error}</p>
-        </div>
-      )}
+      <FormError error={error} />
 
       {success ? (
         <div role="status" className="alert alert-success">

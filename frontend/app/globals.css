@@ -200,7 +200,15 @@
 }
 @keyframes app-fade { from { opacity: 0; } to { opacity: 1; } }
 
+/* Slide-over panel (components/app/SlideOver.tsx) */
+.slide-over[open] { animation: slide-over-in 300ms var(--ease-out) both; }
+.slide-over[open]::backdrop { animation: app-fade 200ms var(--ease-out) both; }
+@keyframes slide-over-in {
+  from { transform: translate3d(24px, 0, 0); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .app-enter, .app-enter-stagger > * { animation: app-fade 150ms linear both; animation-delay: 0ms !important; }
+  .app-enter, .app-enter-stagger > *, .slide-over[open] { animation: app-fade 150ms linear both; animation-delay: 0ms !important; }
   .btn, .field, .seg-btn, .nav-item { transition-duration: 1ms; }
 }

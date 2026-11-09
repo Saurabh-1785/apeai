@@ -49,7 +49,7 @@ export default function FeedbackInboxPage() {
         setClusterTotal(clusterResult.value.total ?? (clusterResult.value.clusters || []).length);
       } else {
         console.error('Failed to fetch clusters:', clusterResult.reason);
-        setError(`Failed to fetch clusters: ${clusterResult.reason?.message || 'Unknown error'}`);
+        setError(clusterResult.reason?.message || "We couldn't load your clusters. Try again in a moment.");
       }
 
       setRefreshKey((k) => k + 1);

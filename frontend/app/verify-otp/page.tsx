@@ -4,14 +4,16 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowRight, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 import AuthShell from '@/components/app/AuthShell';
 import { LoadingState } from '@/components/app/primitives';
+import { FormError } from '@/components/app/FormError';
+import { friendlyAuthError, type FriendlyError } from '@/lib/authErrors';
 
 function VerifyOTPContent() {
   const [otp, setOtp] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -46,7 +48,7 @@ function VerifyOTPContent() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.length !== 6) {
-      setError("Please enter a 6-digit OTP code");
+      setError({ message: 'Enter all 6 digits from the email. The code is numbers only.' });
       return;
     }
 
@@ -54,14 +56,16 @@ function VerifyOTPContent() {
     setError(null);
     setNotice(null);
 
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'signup'
-    });
+    const { error } = await supabase.auth
+      .verifyOtp({
+        email,
+        token: otp,
+        type: 'signup'
+      })
+      .catch((err) => ({ error: err }));
 
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error, 'verify', { email }));
       setLoading(false);
     } else {
       setSuccess(true);
@@ -76,13 +80,15 @@ function VerifyOTPContent() {
     setError(null);
     setNotice(null);
 
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: email,
-    });
+    const { error } = await supabase.auth
+      .resend({
+        type: 'signup',
+        email: email,
+      })
+      .catch((err) => ({ error: err }));
 
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error, 'resend', { email }));
     } else {
       setNotice('A new code is on its way. Codes from earlier emails no longer work.');
     }
@@ -103,12 +109,7 @@ function VerifyOTPContent() {
         )
       }
     >
-      {error && (
-        <div role="alert" className="alert alert-error mb-6">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <p>{error}</p>
-        </div>
-      )}
+      <FormError error={error} />
       {notice && (
         <div role="status" className="alert alert-success mb-6">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />

@@ -1,62 +1,97 @@
 /**
  * ApeAI — Jira Payload Mapper
  *
- * Translates the universal task format into Jira REST API v3 Issue format (ADF).
- * Mirrors Python integrations/jira/mapper.py.
+ * Translates the universal task format into a Jira REST API v3 issue (ADF body).
+ *
+ * The universal description is a small markdown subset, converted to real
+ * Jira formatting so nothing shows up as literal "###" or "- [ ]":
+ *   ### Heading            → heading (level 3)
+ *   - item / - [ ] item    → bullet list (consecutive lines grouped)
+ *   **Label:** text        → paragraph with a bold label
+ *   anything else          → paragraph
  */
 
 type Task = Record<string, unknown>;
+type AdfNode = Record<string, unknown>;
 
-interface JiraPayload {
+export interface JiraPayload {
   fields: {
     project: { key: string };
     summary: string;
-    description: {
-      type: string;
-      version: number;
-      content: Array<Record<string, unknown>>;
-    };
+    description: { type: 'doc'; version: 1; content: AdfNode[] };
     issuetype: { name: string };
-    priority: { name: string };
+    priority?: { name: string };
     labels: string[];
   };
 }
 
-export function mapToJira(task: Task, projectKey: string): JiraPayload {
+function inline(text: string): AdfNode[] {
+  // "**Label:** rest" → bold label + plain rest. Other text stays plain.
+  const nodes: AdfNode[] = [];
+  const re = /\*\*(.+?)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) nodes.push({ type: 'text', text: text.slice(last, m.index) });
+    nodes.push({ type: 'text', text: m[1], marks: [{ type: 'strong' }] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push({ type: 'text', text: text.slice(last) });
+  return nodes.filter((n) => (n['text'] as string).length > 0);
+}
+
+export function toAdf(markdown: string): AdfNode[] {
+  const out: AdfNode[] = [];
+  let list: AdfNode[] | null = null;
+
+  const flush = () => {
+    if (list?.length) out.push({ type: 'bulletList', content: list });
+    list = null;
+  };
+
+  for (const rawLine of markdown.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) {
+      flush();
+      continue;
+    }
+    const bullet = line.match(/^[-*]\s+(?:\[[ xX]\]\s+)?(.*)$/);
+    if (bullet) {
+      list ??= [];
+      list.push({ type: 'listItem', content: [{ type: 'paragraph', content: inline(bullet[1]) }] });
+      continue;
+    }
+    flush();
+    const heading = line.match(/^#{1,6}\s+(.*)$/);
+    if (heading) {
+      out.push({ type: 'heading', attrs: { level: 3 }, content: inline(heading[1]) });
+    } else {
+      out.push({ type: 'paragraph', content: inline(line) });
+    }
+  }
+  flush();
+
+  return out.length ? out : [{ type: 'paragraph', content: [] }];
+}
+
+export function mapToJira(task: Task, projectKey: string, issueType = 'Task'): JiraPayload {
   const priorityRaw = ((task['priority'] as string) ?? 'Medium').toLowerCase();
   let priorityName = 'Medium';
   if (priorityRaw.includes('high') || priorityRaw.includes('must')) priorityName = 'High';
   else if (priorityRaw.includes('low') || priorityRaw.includes('could')) priorityName = 'Low';
 
-  const descriptionText = (task['description'] as string) ?? '';
-  const lines = descriptionText.split('\n');
+  // Jira labels can't contain spaces.
+  const labels = ((task['labels'] as string[]) ?? []).map((l) => l.replace(/\s+/g, '-'));
 
-  const contentNodes: Array<Record<string, unknown>> = [];
-  for (const line of lines) {
-    if (line.trim()) {
-      contentNodes.push({
-        type: 'paragraph',
-        content: [{ type: 'text', text: line }],
-      });
-    }
-  }
-
-  if (contentNodes.length === 0) {
-    contentNodes.push({ type: 'paragraph', content: [] });
-  }
-
-  const labels = ((task['labels'] as string[]) ?? []).map((l) => l.replace(/ /g, '-'));
+  // Jira caps summaries at 255 characters.
+  const summary = String(task['title'] ?? 'ApeAI task').replace(/\s+/g, ' ').trim().slice(0, 255);
 
   return {
     fields: {
       project: { key: projectKey },
-      summary: (task['title'] as string) ?? 'AI Task',
-      description: {
-        type: 'doc',
-        version: 1,
-        content: contentNodes,
-      },
-      issuetype: { name: 'Task' },
+      summary,
+      description: { type: 'doc', version: 1, content: toAdf((task['description'] as string) ?? '') },
+      issuetype: { name: issueType },
       priority: { name: priorityName },
       labels,
     },

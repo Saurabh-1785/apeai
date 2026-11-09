@@ -4,9 +4,11 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthContext';
 import AuthShell from '@/components/app/AuthShell';
+import { FormError } from '@/components/app/FormError';
+import { friendlyAuthError, type FriendlyError } from '@/lib/authErrors';
 
 /** Post-login destination from ?next=, restricted to same-origin paths. */
 function getNextPath(): string {
@@ -18,7 +20,7 @@ function getNextPath(): string {
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FriendlyError | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
@@ -33,16 +35,21 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        setError(friendlyAuthError(error, 'signin', { email: email.trim() }));
+        setLoading(false);
+      } else {
+        router.replace(getNextPath());
+      }
+    } catch (err) {
+      setError(friendlyAuthError(err, 'signin'));
       setLoading(false);
-    } else {
-      router.replace(getNextPath());
     }
   };
 
@@ -62,12 +69,7 @@ export default function LoginPage() {
         </>
       }
     >
-      {error && (
-        <div role="alert" className="alert alert-error mb-6">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <p>{error}</p>
-        </div>
-      )}
+      <FormError error={error} />
 
       <form className="space-y-5" onSubmit={handleEmailLogin}>
         <div>

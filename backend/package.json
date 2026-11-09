@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "create-user": "tsx scripts/create-test-user.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

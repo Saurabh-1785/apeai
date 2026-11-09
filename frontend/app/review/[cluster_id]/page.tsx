@@ -10,6 +10,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/components/AuthContext';
 import { BackLink, LoadingState, PageHeader } from '@/components/app/primitives';
+import { SlideOver } from '@/components/app/SlideOver';
+import { JiraConnectForm } from '@/components/JiraConnectForm';
 import { AlertTriangle, Check, Code, ExternalLink, FileText, Loader2, X } from 'lucide-react';
 
 const TAB_LABEL: Record<string, { short: string; long: string }> = {
@@ -102,6 +104,7 @@ function DocumentReview() {
   const [editContentText, setEditContentText] = useState('');
   const [busy, setBusy] = useState<null | 'save' | 'approve' | 'reject' | 'publish'>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('preview');
+  const [connectOpen, setConnectOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -607,9 +610,9 @@ function DocumentReview() {
                         </button>
                       ) : null
                     ) : (
-                      <Link href="/integrations" className="link text-[13px]">
+                      <button type="button" onClick={() => setConnectOpen(true)} className="btn btn-secondary btn-sm">
                         Connect Jira to publish
-                      </Link>
+                      </button>
                     )}
                   </div>
                 )}
@@ -733,6 +736,29 @@ function DocumentReview() {
           )}
         </div>
       </div>
+
+      <SlideOver
+        open={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        title="Connect Jira"
+        description="One-time setup. After this, approved documents publish to Jira from this page."
+      >
+        <JiraConnectForm
+          idPrefix="review-jira"
+          autoFocus
+          submitLabel="Connect and continue"
+          onConnected={(integration) => {
+            setIntegrations((prev) => [integration, ...prev.filter((i) => i.id !== integration.id)]);
+            setConnectOpen(false);
+            toast(
+              integration.config?.dry_run
+                ? 'Jira connected in dry-run mode. Click Publish to Jira to try it.'
+                : 'Jira connected. Click Publish to Jira to create the issue.',
+              'success',
+            );
+          }}
+        />
+      </SlideOver>
     </div>
   );
 }
